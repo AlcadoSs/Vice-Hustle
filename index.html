@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VICE HUSTLE — a fan homage idle game</title>
+<meta name="description" content="Build a neon-soaked crime empire while the money is still hot. A fan-made idle game homage. Not affiliated with Rockstar Games.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Righteous&family=VT323&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="game.css">
+</head>
+<body>
+
+<!-- ============ TITLE SCREEN ============ -->
+<div id="title-screen">
+  <video id="title-video" autoplay muted loop playsinline poster="art/keyart/vice-hustle-keyart.jpg">
+    <source src="videos/title-loop.mp4" type="video/mp4">
+  </video>
+  <img id="title-poster" src="art/keyart/vice-hustle-keyart.jpg" alt="" hidden>
+  <div class="title-scrim"></div>
+  <div class="title-center">
+    <div class="title-sub">PALMETTO CITY &middot; 1986</div>
+    <h1 class="logo"><span class="logo-vice">VICE</span> <span class="logo-hustle">HUSTLE</span></h1>
+    <div class="title-tag">Build an empire while the money is still hot.</div>
+    <div class="title-buttons">
+      <button id="btn-continue" class="btn btn-primary" hidden>CONTINUE</button>
+      <button id="btn-new" class="btn btn-primary">NEW GAME</button>
+      <button id="btn-wipe" class="btn btn-ghost" hidden>WIPE SAVE</button>
+    </div>
+    <div class="title-note">A fan homage. Not affiliated with Rockstar Games.</div>
+  </div>
+</div>
+
+<!-- ============ GAME ============ -->
+<div id="game" hidden>
+  <div class="district-bg" id="bg-a"></div>
+  <div class="district-bg" id="bg-b"></div>
+  <video id="bg-video" muted loop playsinline></video>
+  <div id="scanlines"></div>
+  <div id="grain"></div>
+
+  <header id="hud">
+    <div id="hud-left">
+      <div id="stars" title="Wanted level"></div>
+      <div class="heat-wrap">
+        <div id="heat-bar"><div id="heat-fill"></div></div>
+        <div id="heat-label">HEAT 0</div>
+        <button id="btn-bribe" class="btn btn-mini">BRIBE <span id="bribe-cost">$0</span> &middot; &minus;20 HEAT</button>
+        <div id="tf-badge" hidden>TASK FORCE &middot; INCOME &minus;25%</div>
+      </div>
+    </div>
+    <div id="ticker"><span id="ticker-text"></span></div>
+    <div id="hud-right">
+      <button id="btn-queens" class="btn btn-mini" title="The Queens">&#128081;</button>
+      <button id="btn-play" class="btn btn-mini" title="Side Hustles">&#127922;</button>
+      <button id="btn-legacy" class="btn btn-mini" title="The Big Score / Legacy">&#9760;</button>
+      <button id="btn-crew" class="btn btn-mini" title="Lieutenants">&#9787;</button>
+      <button id="btn-vault" class="btn btn-mini" title="The Vault">&#9654;</button>
+      <button id="btn-settings" class="btn btn-mini">&#9881;</button>
+    </div>
+  </header>
+
+  <div id="stage">
+    <nav id="district-strip"></nav>
+    <main id="cards-wrap">
+      <div id="cards-head">
+        <span id="district-title" class="panel-title">MOTEL STRIP</span>
+        <div id="buy-toggle" class="seg">
+          <button data-mult="1" class="on">&times;1</button>
+          <button data-mult="10">&times;10</button>
+          <button data-mult="max">MAX</button>
+        </div>
+      </div>
+      <div id="cards"></div>
+      <button id="btn-upgrades" class="btn btn-wide">&#9650; UPGRADES</button>
+      <div id="upgrades" hidden></div>
+    </main>
+  </div>
+
+  <footer id="ledger">
+    <div class="led"><label>DIRTY</label><b id="led-dirty">$0</b></div>
+    <div class="led"><label>CLEAN</label><b id="led-clean" class="gold">$0</b></div>
+    <div class="led"><label>PAY</label><b id="led-income">$0/s</b></div>
+    <div class="led"><label>WASH</label><b id="led-wash" class="teal">$0/s</b></div>
+    <div class="led"><label>RESPECT</label><b id="led-respect" class="teal">0</b></div>
+    <div class="led"><label>HEAT</label><b id="led-heat">+0.0/s</b></div>
+  </footer>
+
+  <button id="heist-btn" class="btn">HEIST</button>
+  <div id="radio">
+    <button id="radio-prev" class="btn btn-mini" title="Previous station">&#9664;</button>
+    <div id="radio-face"><span id="radio-name">WPLM 103.5 · THE VIBE</span><br><span id="radio-sub">DJ KRM ON THE BOARDS</span></div>
+    <button id="radio-next" class="btn btn-mini" title="Next station">&#9654;</button>
+    <button id="radio-mute" class="btn btn-mini" title="Mute">&#128266;</button>
+  </div>
+  <div id="raid-banner" hidden>&#9888; RAID INBOUND <span id="raid-count"></span></div>
+</div>
+
+<!-- ============ OVERLAYS ============ -->
+<div id="raid-overlay" hidden>
+  <video id="raid-vid" muted loop playsinline></video>
+  <div class="raid-flash"></div>
+  <div class="raid-card"><h2>&#9888; RAIDED</h2><p id="raid-text"></p></div>
+</div>
+
+<div id="heist-modal" class="overlay" hidden>
+  <div class="heist-box">
+    <div class="heist-kicker" id="heist-kicker">THE SCORE</div>
+    <div class="heist-name" id="heist-name">PICK YOUR SCORE</div>
+    <div id="heist-pick"></div>
+    <div id="heist-play" hidden>
+      <div id="drill-track"><div id="drill-zone"></div><div id="drill-marker"></div></div>
+      <div id="boost-board" hidden>
+        <div class="boost-lane" id="lane-top"></div>
+        <div class="boost-lane" id="lane-bot"></div>
+        <div id="boost-car">&#128667;</div>
+      </div>
+      <div id="con-board" hidden></div>
+      <div id="drill-stats"></div>
+      <div id="heist-help"></div>
+    </div>
+    <div id="drill-result" hidden></div>
+  </div>
+</div>
+
+<div id="modal" class="overlay" hidden>
+  <div class="modal-box">
+    <h2 id="modal-title"></h2>
+    <div id="modal-body"></div>
+    <div id="modal-buttons"></div>
+  </div>
+</div>
+
+<div id="toast" hidden></div>
+
+<script src="radio.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

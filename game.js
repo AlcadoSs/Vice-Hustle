@@ -1,0 +1,1261 @@
+/* ============================================================
+   VICE HUSTLE — game.js · M2 vertical slice
+   6 districts · Dirty/Heat/Raid/Launder loop · 3 heist minigames
+   The Big Score prestige + Legacy tree · 8 lieutenants · The Vault
+   Docs: docs/GDD.md · docs/ART_BIBLE.md
+   ============================================================ */
+'use strict';
+
+/* ---------------- CONFIG ---------------- */
+const SAVE_KEY='vice-hustle-save', SAVE_VER=3;
+const TICK_MS=200, HEIST_FIRST_S=180, HEIST_EVERY_S=300, RAID_COOLDOWN_S=25;
+const OFFLINE_CAP_S=8*3600, OFFLINE_MIN_S=90;
+
+const DISTRICTS=[
+  {id:1,name:'MOTEL STRIP', img:'art/districts/d1-motel-strip.jpg', img2:'art/era2/d1.jpg', vid:'videos/d1-loop.mp4', icon:'🌴', unlock:0,     unlockTxt:''},
+  {id:2,name:'NEON BEACH',  img:'art/districts/d2-neon-beach.jpg',  img2:'art/era2/d2.jpg', vid:'videos/d2-loop.mp4', icon:'🏖️', unlock:150e3, unlockTxt:'$150K CLEAN'},
+  {id:3,name:'DOWNTOWN',    img:'art/districts/d3-downtown.jpg',    img2:'art/era2/d3.jpg', vid:'videos/d3-loop.mp4', icon:'🌃', unlock:4e6,    unlockTxt:'$4M CLEAN'},
+  {id:4,name:'THE DOCKS',   img:'art/districts/d4-docks.jpg',       img2:'art/era2/d4.jpg', vid:'videos/d4-loop.mp4', icon:'⚓', unlock:120e6,  unlockTxt:'$120M CLEAN'},
+  {id:5,name:'SWAMP GLADES',img:'art/districts/d5-swamp.jpg',       img2:'art/era2/d5.jpg', vid:'videos/d5-loop.mp4', icon:'🐊', unlock:4e9,    unlockTxt:'$4B CLEAN'},
+  {id:6,name:'STAR ISLAND', img:'art/districts/d6-star-island.jpg', img2:'art/era2/d6.jpg', vid:'videos/d6-loop.mp4', icon:'🏝️', unlock:150e9,  unlockTxt:'$150B CLEAN'},
+];
+
+const RACKETS=[
+  // D1 — Motel Strip
+  {id:'cars',   d:1, name:'Boosting Cars',        ic:'art/icons/cars.jpg',    em:'🚗', cost:50,    inc:1,    heat:.05},
+  {id:'scams',  d:1, name:'Petty Scams',          ic:'art/icons/scams.jpg',   em:'🃏', cost:600,   inc:8,    heat:.15},
+  {id:'boats',  d:1, name:'Cigarette Boat Runs',  ic:'art/icons/boats.jpg',   em:'🚤', cost:7200,  inc:70,   heat:.4},
+  {id:'tv',     d:1, name:'Fenced Electronics',   ic:'art/icons/tv.jpg',      em:'📼', cost:87e3,  inc:600,  heat:1.2},
+  {id:'motel',  d:1, name:'Palm Court Motel',     ic:'art/icons/motel.jpg',   em:'🏨', cost:6e5,   inc:0, heat:0, lau:10, front:true},
+  // D2 — Neon Beach
+  {id:'park',   d:2, name:'Beach Parking Racket', ic:'art/icons/park.jpg',    em:'🅿️', cost:1.2e6, inc:8000, heat:2},
+  {id:'arcade', d:2, name:'Arcade Skimming',      ic:'art/icons/arcade.jpg',  em:'🕹️', cost:14e6,  inc:95e3, heat:5.5},
+  {id:'escort', d:2, name:'Companionship Services',ic:'art/icons/escort.jpg', em:'💋', cost:170e6, inc:1.1e6,heat:15},
+  {id:'roids',  d:2, name:'Steroid Imports',      ic:'art/icons/roids.jpg',   em:'💊', cost:2e9,   inc:13e6, heat:40},
+  {id:'kiosk',  d:2, name:'Boardwalk Kiosks',     ic:'art/icons/kiosk.jpg',   em:'🛍️', cost:24e9,  inc:0, heat:0, lau:20e3, front:true},
+  // D3 — Downtown
+  {id:'protect',d:3, name:'Protection Racket',    ic:'art/icons/protect.jpg', em:'🥊', cost:2.8e11, inc:1.5e8,  heat:3},
+  {id:'casino', d:3, name:'Underground Casino',   ic:'art/icons/casino.jpg',  em:'🎲', cost:3.3e12, inc:1.8e9,  heat:8},
+  {id:'grand',  d:3, name:'High-End Car Theft',   ic:'art/icons/grand.jpg',   em:'🏎️', cost:3.8e13, inc:2.1e10, heat:20},
+  {id:'chop',   d:3, name:'Chop Shop 2.0',        ic:'art/icons/chop.jpg',    em:'🔧', cost:4.4e14, inc:2.5e11, heat:55},
+  {id:'bail',   d:3, name:'Bail Bonds "Front"',   ic:'art/icons/bail.jpg',    em:'⚖️', cost:5e15,   inc:0, heat:0, lau:4e8, front:true},
+  // D4 — The Docks
+  {id:'boxes',  d:4, name:'Container "Misplacement"',ic:'art/icons/boxes.jpg',em:'📦', cost:5.2e16, inc:2.9e12, heat:6},
+  {id:'union',  d:4, name:'Dockworkers Union',    ic:'art/icons/union.jpg',   em:'🦺', cost:6e17,   inc:3.4e13, heat:16},
+  {id:'tunnels',d:4, name:'Smuggling Tunnels',    ic:'art/icons/tunnels.jpg', em:'🕳️', cost:7e18,   inc:3.9e14, heat:40},
+  {id:'yachts', d:4, name:'Yacht Charters',       ic:'art/icons/yachts.jpg',  em:'🛥️', cost:8.2e19, inc:4.5e15, heat:110},
+  {id:'fish',   d:4, name:'Fish Market Front',    ic:'art/icons/fish.jpg',    em:'🐟', cost:9.5e20, inc:0, heat:0, lau:5e11, front:true},
+  // D5 — Swamp Glades
+  {id:'shine',  d:5, name:'Moonshine Stills',     ic:'art/icons/shine.jpg',   em:'🌕', cost:1.1e22, inc:5.2e16, heat:12},
+  {id:'cargo',  d:5, name:'Buried Cargo Pickup',  ic:'art/icons/cargo.jpg',   em:'🧭', cost:1.3e23, inc:6e17,   heat:30},
+  {id:'exotic', d:5, name:'Exotic Animal Trade',  ic:'art/icons/exotic.jpg',  em:'🦎', cost:1.5e24, inc:6.9e18, heat:75},
+  {id:'gamble', d:5, name:'Swamp Gambling Den',   ic:'art/icons/gamble.jpg',  em:'🃏', cost:1.75e25,inc:8e19,   heat:200},
+  {id:'gator',  d:5, name:'Gator Farm Tourism',   ic:'art/icons/gator.jpg',   em:'🐊', cost:2e26,   inc:0, heat:0, lau:6e14, front:true},
+  // D6 — Star Island
+  {id:'rap',    d:6, name:'Rap Label',            ic:'art/icons/rap.jpg',     em:'🎙️', cost:2.3e27, inc:9.2e20, heat:25},
+  {id:'crypto', d:6, name:'Crypto Exchange',      ic:'art/icons/crypto.jpg',  em:'🪙', cost:2.7e28, inc:1.05e22,heat:60},
+  {id:'club',   d:6, name:'Nightclub Empire',     ic:'art/icons/club.jpg',    em:'🪩', cost:3.1e29, inc:1.2e23, heat:150},
+  {id:'gallery',d:6, name:'Art Gallery Front',    ic:'art/icons/gallery.jpg', em:'🖼️', cost:3.6e30, inc:0, heat:0, lau:1.4e16, front:true},
+  {id:'security',d:6,name:'Private Security Firm',ic:'art/icons/security.jpg',em:'🛡️', cost:4.2e31, inc:1.4e24, heat:0, special:'security'},
+];
+
+const UPGRADES=[
+  {id:'lawyer', name:'Bent Lawyer',       icon:'⚖️', max:3, costs:[20e3,400e3,8e6], desc:'+0.5/s Heat decay per hire'},
+  {id:'scanner',name:'Police Scanner',    icon:'📡', max:1, costs:[60e3],            desc:'10s warning before every raid'},
+  {id:'washers',name:'Industrial Washers',icon:'🫧', max:3, costs:[15e3,300e3,6e6], desc:'+50% laundering speed per tier'},
+];
+
+const HEISTS=[
+  {id:'grab',   d:1, name:"Kasey's Cash House",  kind:'drill', risk:1, vid:'videos/heist-grab.mp4'},
+  {id:'motel',  d:1, name:'The Ice Machine Job', kind:'con',   risk:1, vid:'videos/heist-motel.mp4'},
+  {id:'vault',  d:2, name:'Arcade Vault',        kind:'drill', risk:2, vid:'videos/heist-vault.mp4'},
+  {id:'board',  d:2, name:'Boardwalk Long Con',  kind:'con',   risk:2, vid:'videos/heist-board.mp4'},
+  {id:'cage',   d:3, name:'Casino Cage',         kind:'drill', risk:3, vid:'videos/heist-casino.mp4'},
+  {id:'tower',  d:3, name:'Tower Getaway',       kind:'boost', risk:2, vid:'videos/heist-tower.mp4'},
+  {id:'run',    d:4, name:'Container Run',       kind:'boost', risk:2, vid:'videos/heist-container.mp4'},
+  {id:'customs',d:4, name:'Customs Con',         kind:'con',   risk:2, vid:'videos/heist-customs.mp4'},
+  {id:'still',  d:5, name:'Still House Score',   kind:'drill', risk:2, vid:'videos/heist-still.mp4'},
+  {id:'drop',   d:5, name:'Gator Pit Drop',      kind:'boost', risk:2, vid:'videos/heist-drop.mp4'},
+  {id:'safe',   d:6, name:'Mansion Safe',        kind:'drill', risk:3, vid:'videos/heist-safe.mp4'},
+  {id:'swap',   d:6, name:'Gallery Swap',        kind:'con',   risk:3, vid:'videos/heist-gallery.mp4'},
+];
+const RISK_MULT={1:2,2:4,3:8};
+const RISK_TXT={1:'★☆☆ EASY ×2',2:'★★☆ MED ×4',3:'★★★ HARD ×8'};
+const KIND_TXT={drill:'THE DRILL',boost:'THE BOOST',con:'THE CON'};
+
+const LIEUTS=[
+  {id:'ray',   name:'Ray "Chrome" Delgado', role:'Wheelman',    pic:'art/portraits/ray.jpg',   em:'🕶️', unlock:s=>s.stats.heists>=1,          hint:'run your first heist',        fx:'Boost & Con windows +25%'},
+  {id:'betty', name:'Miss Betty',           role:'Launder Queen',pic:'art/portraits/betty.jpg',em:'🧺', unlock:s=>(s.r.motel||{n:0}).n>=25,   hint:'own 25 Palm Court Motels',    fx:'Laundering speed +25%'},
+  {id:'kmr',   name:'DJ KRM',               role:'103.5 FM Host',pic:'art/portraits/kmr.jpg', em:'🎧', unlock:s=>s.unlocked>=2,             hint:'unlock Neon Beach',           fx:'Heat decay +0.5/s'},
+  {id:'sal',   name:'"Suit" Sal Marchetti', role:'Fixer',        pic:'art/portraits/sal.jpg',   em:'🕴️', unlock:s=>s.stats.raids>=1,          hint:'survive a raid',              fx:'First raid each hour: 50% refunded'},
+  {id:'rosa',  name:'Capitana Rosa',        role:'Dock Boss',    pic:'art/portraits/rosa.jpg',  em:'⚓', unlock:s=>s.unlocked>=4,             hint:'unlock The Docks',            fx:'Docks rackets +50% income'},
+  {id:'ana',   name:'Dr. Ana Peligro',      role:'Wildlife "Vet"',pic:'art/portraits/ana.jpg', em:'🩺', unlock:s=>s.unlocked>=5,             hint:'unlock Swamp Glades',         fx:'Glades rackets +40% income'},
+  {id:'tang',  name:'Tangerine Dream',      role:'Art Forger',   pic:'art/portraits/tang.jpg',  em:'🍊', unlock:s=>s.unlocked>=6,             hint:'unlock Star Island',          fx:'Laundering speed +5%'},
+  {id:'ghost', name:'The Ghost',            role:'Legend',       pic:'art/portraits/ghost.jpg', em:'👤', unlock:s=>s.respect>=500,           hint:'earn 500 Respect',            fx:'Raids never shut down rackets'},
+];
+
+const LEGACY=[
+  {id:'empire',  name:'Empire',    icon:'💼', desc:'+25% all income per level',        max:5},
+  {id:'laundry', name:'Laundromats',icon:'🫧', desc:'+15% laundering per level',        max:5},
+  {id:'whisper', name:'Whisper',   icon:'🤫', desc:'−8% Heat rate per level',          max:5},
+  {id:'kick',    name:'Kickstart', icon:'⚡', desc:'Start each empire with +$100K/level', max:5},
+];
+const LEGACY_COSTS=[1,2,4,8,16];
+
+const QUEENS=[
+  {id:'solana',  name:'Solana Vega',      title:'The Bikini Baroness',   pic:'art/queens/solana.jpg',  em:'👑', unlock:s=>s.unlocked>=2,     hint:'unlock Neon Beach',        fx:'Bribes cost half'},
+  {id:'camille', name:'Camille St. Croix',title:'Hostess w/ the Mostest',pic:'art/queens/camille.jpg', em:'🍸', unlock:s=>s.unlocked>=3,     hint:'unlock Downtown',           fx:'Heist takes +25%'},
+  {id:'roxy',    name:'Roxy Rico',        title:'Street Race Royalty',   pic:'art/queens/roxy.jpg',    em:'🏁', unlock:s=>s.acts.swins>=3,   hint:'win 3 street races',        fx:'Street race pay ×2'},
+  {id:'yara',    name:'Yara',             title:'The Gator Whisperer',   pic:'art/queens/yara.jpg',    em:'🐊', unlock:s=>s.acts.gwins>=3,   hint:'win 3 gator races',         fx:'Gator race pay ×1.5'},
+  {id:'destiny', name:'Destiny Monroe',   title:'The Diva',              pic:'art/queens/destiny.jpg', em:'🎤', unlock:s=>s.unlocked>=6,     hint:'unlock Star Island',        fx:'Frenzies last twice as long'},
+  {id:'vivienne',name:'Vivienne Ashford', title:'The Heiress',           pic:'art/queens/vivienne.jpg',em:'🛥️', unlock:s=>s.respect>=1,      hint:'pull your first Big Score', fx:'Offline earnings +50%'},
+];
+const RADIO_SUBS=['DJ KRM ON THE BOARDS','SALT IN THE SPEAKERS','CHROME AFTER DARK','HEAVY MACHINERY','BROADCAST FROM THE MIST','ONLY THE FINEST'];
+const NIGHT_LINES=[
+  'Solana knows a beach bar that forgets faces.',
+  'Camille got you the booth with the good champagne.',
+  'Roxy took the scenic route. All of them.',
+  'Yara introduced you to a gator named Kevin.',
+  'Destiny dedicated a song to "a certain somebody."',
+  'Vivienne tipped the valet with a Rolex.',
+];
+
+const MILESTONES=[
+  {id:'car1',    name:'Where It All Begins', test:s=>(s.r.cars||{n:0}).n>=1},
+  {id:'raid1',   name:'Slipped the Cuffs',   test:s=>s.stats.raids>=1},
+  {id:'tf1',     name:'Public Enemy',        test:s=>s.heat>=100},
+  {id:'heist1',  name:'First Score',         test:s=>s.stats.heists>=1},
+  {id:'queen1',  name:'Charmed',             test:s=>Object.keys(s.queens).length>=1},
+  {id:'crew4',   name:'The Outfit',          test:s=>Object.keys(s.lieuts).length>=4},
+  {id:'d2',      name:'Beach House',         test:s=>s.unlocked>=2},
+  {id:'d3',      name:'Skyline',             test:s=>s.unlocked>=3},
+  {id:'clean1m', name:'Seven Figures (Clean)',test:s=>s.stats.clean>=1e6},
+  {id:'d4',      name:'Harborlight',         test:s=>s.unlocked>=4},
+  {id:'d5',      name:'Swamp Thing',         test:s=>s.unlocked>=5},
+  {id:'d6',      name:'Star Struck',         test:s=>s.unlocked>=6},
+  {id:'races5',  name:'Green Flag',          test:s=>s.acts.races>=5},
+  {id:'vault3',  name:'Triple Threat',       test:s=>Object.keys(s.vault).length>=3},
+  {id:'scr10',   name:'Lucky Fingers',       test:s=>s.acts.scratch>=10},
+  {id:'big1',    name:'The Big Score',       test:s=>s.respectGranted>=1},
+];
+
+const TICKER=[
+  'That motel ice machine? Loose change. Check it.',
+  'Police report a "completely normal" amount of sirens tonight.',
+  'Reminder: the 5-0 reads the tide charts too, friend.',
+  'Somewhere out there, a man in white is leaning on a very nice car.',
+  'Sunscreen. Sunglasses. Silence. The Palmetto way.',
+  'The gators didn\'t see anything. They never do.',
+  'You hear that? Exactly. That\'s the sound of no snitches.',
+  'Tonight\'s forecast: 80% chance of neon.',
+  'If the heat\'s on, the washer\'s slow. Nature is healing.',
+  'A word from our sponsor: laundromats. Wash everything.',
+  'Lost: one briefcase. Finder keeps it. Seriously. Keep it.',
+  'The mayor says crime is down. The mayor is hilarious.',
+  'Boardwalk parking is now "flexibly priced".',
+  'Downtown penthouse prices are "aggressive", says man selling one.',
+  'Customs officials deny the tunnels exist, then ask for directions.',
+  'Swamp tour operators report record "catch and release" numbers.',
+  'A gallery on Star Island sold a blank canvas. Twice. Same canvas.',
+  'Private security: because the city never sleeps, but someone must.',
+  'This is DJ KRM, signing off before the sirens sign on.',
+  '1986 called. It wants its skyline back.',
+];
+
+/* ---------------- STATE ---------------- */
+function defaultState(){
+  return {
+    v:SAVE_VER, dirty:0, clean:0, heat:0, tf:false,
+    unlocked:1, active:1, r:{}, up:{lawyer:0,scanner:0,washers:0},
+    respect:0, respectGranted:0, spent:{empire:0,laundry:0,whisper:0,kick:0},
+    vault:{}, lieuts:{}, lastSal:0, era:1,
+    radio:{st:0,muted:false}, acts:{races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},
+    queens:{}, inspiredUntil:0, nightCd:0, mile:{},
+    heistReadyAt:0, frenzy:0, ts:Date.now(),
+    stats:{dirty:0,clean:0,raids:0,heists:0},
+  };
+}
+let S=defaultState();
+let started=false, mult='1';
+let pendingRaidAt=0, lastRaidAt=0, raidTO=0;
+let drill=null, drillRAF=0, drillTO=0;
+let cardRefs={}, structureKey='';
+let tickIdx=0;
+const reducedMotion=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------------- UTILS ---------------- */
+const $id=x=>document.getElementById(x);
+const now=()=>Date.now();
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const UNITS=['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc'];
+function fmt(n){
+  if(!isFinite(n))return'∞';
+  if(n<0)return'-'+fmt(-n);
+  if(n<1000)return n>=100||n%1===0?String(Math.floor(n)):n.toFixed(1);
+  let u=0; while(n>=1000&&u<UNITS.length-1){n/=1000;u++;}
+  return (n>=100?n.toFixed(0):n.toFixed(1))+UNITS[u];
+}
+const $$=n=>'$'+fmt(n);
+const mmss=s=>{s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+
+function isPaused(){
+  return !$id('modal').hidden || !$id('heist-modal').hidden || !$id('raid-overlay').hidden;
+}
+let toastTO=0;
+function toast(msg){
+  const t=$id('toast'); t.textContent=msg; t.hidden=false;
+  clearTimeout(toastTO); toastTO=setTimeout(()=>t.hidden=true,2600);
+}
+
+/* ---------------- GAME MATH ---------------- */
+function rs(id){ return S.r[id]||(S.r[id]={n:0,lock:0}); }
+function mile(n){ return n>=500?100:n>=100?10:n>=50?4:n>=25?2:1; }
+function nextMile(n){ return n>=500?Infinity:n>=100?500:n>=50?100:n>=25?50:25; }
+function has(id){ return !!(S.lieuts[id]||S.queens[id]); }
+function globalMult(){
+  let m=1+.25*S.spent.empire;
+  if(S.era===2)m*=5; else if(S.era===3)m*=25;
+  if(S.frenzy>now()||S.inspiredUntil>now())m*=2;
+  if(S.tf)m*=.75;
+  return m;
+}
+function distMult(d){
+  let m=1;
+  if(d===4&&has('rosa'))m*=1.5;
+  if(d===5&&has('ana'))m*=1.4;
+  return m;
+}
+function racketLive(st){ return st.n>0&&st.lock<=now(); }
+function incomeOf(r){ const st=rs(r.id); return racketLive(st)?r.inc*st.n*mile(st.n)*globalMult()*distMult(r.d):0; }
+function heatOf(r){ const st=rs(r.id); return racketLive(st)?r.heat*Math.sqrt(st.n):0; }
+function washOf(r){
+  const st=rs(r.id); if(!racketLive(st))return 0;
+  let w=r.lau*st.n*mile(st.n)*(1+.5*S.up.washers)*(1+.15*S.spent.laundry);
+  if(has('betty'))w*=1.25;
+  if(has('tang'))w*=1.05;
+  return w;
+}
+function districtRackets(d){ return RACKETS.filter(r=>r.d===d); }
+function visibleRackets(d){
+  const list=districtRackets(d), out=[];
+  for(let i=0;i<list.length;i++){
+    const st=rs(list[i].id);
+    if(i===0||st.n>0||(rs(list[i-1].id).n>=10)) out.push(list[i]);
+  }
+  return out;
+}
+function totalIncome(){ let x=0; for(const d of DISTRICTS){ if(d.id>S.unlocked)break; for(const r of visibleRackets(d.id)) x+=r.front?0:incomeOf(r); } return x; }
+function totalHeat(){
+  let x=0;
+  for(const d of DISTRICTS){ if(d.id>S.unlocked)break; for(const r of visibleRackets(d.id)) x+=heatOf(r); }
+  x*=Math.pow(.92,S.spent.whisper);              // Whisper legacy
+  if(rs('security').n>0)x*=.7;                    // Private Security Firm
+  return x;
+}
+function totalWash(){ let x=0; for(const d of DISTRICTS){ if(d.id>S.unlocked)break; for(const r of visibleRackets(d.id)) if(r.front) x+=washOf(r); } return x; }
+function decayRate(){
+  let d=.5+.5*S.up.lawyer+S.heat*.025;
+  if(has('kmr'))d+=.5;
+  return d;
+}
+function costOf(r,k){ const cur=rs(r.id).n,b=r.cost*Math.pow(1.15,cur); return b*(Math.pow(1.15,k)-1)/.15; }
+function bribeCost(){ return Math.max(400,totalIncome()*45)*(has('solana')?.5:1); }
+function maxAfford(r,money){ const cur=rs(r.id).n,b=r.cost*Math.pow(1.15,cur); return Math.max(0,Math.floor(Math.log(money*.15/b+1)/Math.log(1.15))); }
+function respectGain(){ return Math.max(0,Math.floor(Math.sqrt(S.stats.clean/1e4))-S.respectGranted); }
+
+/* ---------------- SAVE ---------------- */
+function save(){
+  try{ S.ts=now(); localStorage.setItem(SAVE_KEY,JSON.stringify(S)); }catch(e){}
+}
+function load(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY); if(!raw)return false;
+    const d=JSON.parse(raw); if(!d||d.v>SAVE_VER)return false;
+    S=Object.assign(defaultState(),d);
+    S.up=Object.assign({lawyer:0,scanner:0,washers:0},d.up);
+    S.spent=Object.assign({empire:0,laundry:0,whisper:0,kick:0},d.spent);
+    S.stats=Object.assign({dirty:0,clean:0,raids:0,heists:0},d.stats);
+    S.lieuts=d.lieuts||{}; S.vault=d.vault||{};
+    S.radio=Object.assign({st:0,muted:false},d.radio);
+    S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},d.acts);
+    S.queens=d.queens||{};
+    S.mile=d.mile||{};
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ---------------- LIEUTENANT CHECK ---------------- */
+function checkLieuts(){
+  for(const l of LIEUTS){
+    if(!S.lieuts[l.id]&&l.unlock(S)){
+      S.lieuts[l.id]=true;
+      toast(l.name.toUpperCase()+' JOINED THE CREW — '+l.fx.toUpperCase());
+    }
+  }
+}
+
+/* ---------------- RENDER ---------------- */
+function setBg(d){
+  const a=$id('bg-a'),b=$id('bg-b'),v=$id('bg-video');
+  // the painted still always renders underneath; the video fades in on top only while actually playing
+  const img=S.era===2?d.img2:d.img;
+  const target=a.classList.contains('show')?b:a, other=target===a?b:a;
+  target.style.backgroundImage=`url("${img}")`;
+  target.classList.add('show'); other.classList.remove('show');
+  v.pause(); v.classList.remove('show');
+  if(S.era===1&&d.vid&&!reducedMotion()){
+    v.src=d.vid; v.poster=img;
+    v.play().catch(()=>{});
+  }
+}
+function districtOf(id){ return DISTRICTS.find(d=>d.id===id); }
+
+function renderTabs(){
+  const nav=$id('district-strip'); nav.innerHTML='';
+  for(const d of DISTRICTS){
+    const locked=d.id>S.unlocked;
+    const b=document.createElement('button');
+    b.className='d-tab'+(S.active===d.id?' active':'')+(locked?' locked':'');
+    b.innerHTML=`<span class="d-ico">${d.icon}</span>${d.name}${locked?`<small>🔒 ${d.unlockTxt}</small>`:''}`;
+    b.onclick=()=>{ if(locked){confirmUnlock(d);} else if(S.active!==d.id){S.active=d.id;applyDistrict();} };
+    nav.appendChild(b);
+  }
+}
+function applyDistrict(){
+  const d=districtOf(S.active);
+  setBg(d); $id('district-title').textContent=d.name;
+  if(window.Radio){ Radio.setStation(S.active-1); S.radio.st=Radio.station; updateRadioFace(); }
+  renderCardsStructure(); renderTabs();
+}
+
+function iconHTML(r,size){
+  return `<div class="c-icon" style="${size?`width:${size}px;height:${size}px`:''}">${r.em||''}<img src="${r.ic}" alt="" onerror="this.remove()"></div>`;
+}
+function cardHTML(r){
+  return `<div class="card${r.front?' front':''}" data-id="${r.id}">
+    ${iconHTML(r)}
+    <div class="c-main">
+      <div class="c-name">${r.name}<span class="c-owned"></span></div>
+      <div class="c-stats"></div>
+      <div class="c-bar"><i></i></div>
+    </div>
+    <button class="c-buy"></button>
+    <div class="lockband" hidden></div>
+  </div>`;
+}
+function renderCardsStructure(){
+  const wrap=$id('cards'); const list=visibleRackets(S.active);
+  wrap.innerHTML=list.map(cardHTML).join('');
+  cardRefs={};
+  for(const el of wrap.querySelectorAll('.card')){
+    cardRefs[el.dataset.id]={
+      el, owned:el.querySelector('.c-owned'), stats:el.querySelector('.c-stats'),
+      bar:el.querySelector('.c-bar i'), buy:el.querySelector('.c-buy'), lock:el.querySelector('.lockband'),
+    };
+  }
+  structureKey=structKey();
+}
+function structKey(){ return S.active+'|'+visibleRackets(S.active).map(r=>r.id).join(','); }
+
+function updateCards(t){
+  if(structKey()!==structureKey) renderCardsStructure();
+  const list=visibleRackets(S.active);
+  for(const r of list){
+    const c=cardRefs[r.id]; if(!c)continue;
+    const st=rs(r.id);
+    c.owned.textContent=st.n?' ×'+st.n:'';
+    if(r.front){
+      c.stats.innerHTML=st.n?`<span class="wash">WASH +${$$(washOf(r))}/s</span>`:`<span class="wash">WASH +${$$(r.lau*(1+.5*S.up.washers)*(1+.15*S.spent.laundry))}/s each</span>`;
+    }else{
+      c.stats.innerHTML=st.n
+        ?`${$$(incomeOf(r))}/s · <span class="heat-up">+${heatOf(r).toFixed(2)} heat/s</span>`
+        :`${$$(r.inc*globalMult()*distMult(r.d))}/s each${r.heat
+            ?` · <span class="heat-up">+${r.heat} heat/s</span>`
+            :` · <span class="teal">COOLS THE CITY −30%</span>`}`;
+    }
+    const nm=nextMile(st.n);
+    c.bar.style.width=(nm===Infinity?100:clamp(st.n/nm*100,0,100))+'%';
+    let k=mult==='max'?Math.max(1,maxAfford(r,S.dirty)):(mult==='10'?10:1);
+    const cost=costOf(r,k), can=S.dirty>=cost&&(mult!=='max'||maxAfford(r,S.dirty)>=1);
+    c.buy.innerHTML=`BUY ×${k}<b>${$$(cost)}</b>`;
+    c.buy.disabled=!can;
+    if(st.lock>t){
+      c.lock.hidden=false;
+      c.lock.innerHTML=`🔒 COLD ${Math.ceil((st.lock-t)/1000)}s`;
+    }else c.lock.hidden=true;
+  }
+}
+$id('cards').addEventListener('click',e=>{
+  const btn=e.target.closest('.c-buy'); if(!btn||btn.disabled)return;
+  const id=btn.closest('.card').dataset.id, r=RACKETS.find(x=>x.id===id);
+  let k=mult==='max'?maxAfford(r,S.dirty):(mult==='10'?10:1);
+  if(k<1)return;
+  const cost=costOf(r,k);
+  if(S.dirty<cost){toast('NOT ENOUGH DIRTY CASH');return;}
+  S.dirty-=cost; rs(id).n+=k;
+  window.Radio&&Radio.sfx.chaChing();
+  updateCards(now()); checkLieuts();
+});
+
+function renderUpgrades(){
+  const box=$id('upgrades'); box.innerHTML='';
+  for(const u of UPGRADES){
+    const tier=S.up[u.id], maxed=tier>=u.max;
+    const row=document.createElement('div'); row.className='up-row';
+    row.innerHTML=`<div class="c-icon">${u.icon}</div>
+      <div class="up-main"><div class="up-name">${u.name} <span class="tier">${'●'.repeat(tier)}${'○'.repeat(u.max-tier)}</span></div>
+      <div class="up-desc">${u.desc}</div></div>
+      <button class="up-buy" ${maxed?'disabled':''}>${maxed?'MAX':$$(u.costs[tier])}</button>`;
+    row.querySelector('.up-buy').onclick=()=>{
+      const t2=S.up[u.id]; if(t2>=u.max)return;
+      const c=u.costs[t2]; if(S.clean<c){toast('NOT ENOUGH CLEAN MONEY');return;}
+      S.clean-=c; S.up[u.id]++; renderUpgrades(); toast(u.name.toUpperCase()+' SECURED');
+    };
+    box.appendChild(row);
+  }
+}
+
+function heatStars(){ return S.heat>=99?5:S.heat>=80?4:S.heat>=60?3:S.heat>=40?2:S.heat>=20?1:0; }
+function heatWord(){ return S.heat>=100?'TASK FORCE':S.heat>=70?'WANTED':S.heat>=40?'SUSPICIOUS':'CLEAN AIR'; }
+
+function updateHUD(t){
+  const stars=$id('stars');
+  if(stars.children.length!==5){stars.innerHTML='<span class="st">★</span>'.repeat(5);}
+  const on=heatStars();
+  [...stars.children].forEach((s,i)=>{s.className=i<on?'st on':'st';s.setAttribute('aria-hidden',i>=on?'true':'false');});
+  $id('heat-fill').style.width=S.heat+'%';
+  $id('heat-label').textContent=`HEAT ${Math.round(S.heat)} · ${heatWord()}`;
+  $id('tf-badge').hidden=!S.tf;
+  const bribe=bribeCost();
+  $id('bribe-cost').textContent=$$(bribe);
+  $id('btn-bribe').disabled=S.dirty<bribe||S.heat<=0;
+}
+function updateLedger(){
+  $id('led-dirty').textContent=$$(S.dirty);
+  $id('led-clean').textContent=$$(S.clean);
+  $id('led-income').textContent=$$(totalIncome())+'/s';
+  $id('led-wash').textContent=$$(totalWash())+'/s';
+  $id('led-respect').textContent=fmt(S.respect)+(respectGain()?` (+${respectGain()})`:'');
+  const net=totalHeat()-decayRate();
+  const el=$id('led-heat');
+  el.textContent=(net>=0?'+':'−')+Math.abs(net).toFixed(1)+'/s';
+  el.style.color=net>0?'#ff5d7a':'var(--teal)';
+  el.style.textShadow=`0 0 10px ${net>0?'rgba(255,93,122,.7)':'rgba(22,224,189,.7)'}`;
+}
+function updateHeistBtn(t){
+  const b=$id('heist-btn'), ready=t>=S.heistReadyAt&&started;
+  b.classList.toggle('ready',ready);
+  b.textContent=ready?'HEIST!':'HEIST '+mmss((S.heistReadyAt-t)/1000);
+}
+
+/* ---------------- ACTIONS ---------------- */
+$id('btn-bribe').onclick=()=>{
+  const cost=bribeCost();
+  if(S.dirty<cost||S.heat<=0)return;
+  S.dirty-=cost; S.heat=clamp(S.heat-20,0,100);
+  toast('HANDSHAKE COMPLETE · −20 HEAT');
+};
+$id('buy-toggle').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  mult=b.dataset.mult;
+  [...$id('buy-toggle').children].forEach(x=>x.classList.toggle('on',x===b));
+  updateCards(now());
+});
+$id('btn-upgrades').onclick=()=>{ const u=$id('upgrades'); u.hidden=!u.hidden; if(!u.hidden)renderUpgrades(); };
+
+function confirmUnlock(d){
+  const next=districtRackets(d.id).slice(0,2).map(r=>r.name).join(' & ');
+  modal(`UNLOCK ${d.name}?`,
+    `<p>New turf, bigger rackets — and a lot more attention.</p>
+     <p class="led-line">COST: ${$$(d.unlock)} CLEAN MONEY</p>
+     <p class="led-line">YOU HAVE: ${$$(S.clean)}</p>
+     <p style="margin-top:8px">First up: <b>${next}</b></p>`,
+    [{label:'UNLOCK',cls:'btn-primary',fn:()=>{
+        if(S.clean<d.unlock){toast('NOT ENOUGH CLEAN MONEY');return;}
+        S.clean-=d.unlock; S.unlocked=d.id; S.active=d.id; applyDistrict(); checkLieuts();
+        toast(d.name+' IS OPEN FOR BUSINESS');
+     }},
+     {label:'NOT YET',cls:'btn-ghost',fn:closeModal}]);
+}
+
+/* ---------------- RAIDS ---------------- */
+function scheduleRaid(t){
+  const warn=S.up.scanner>0;
+  pendingRaidAt=t+(warn?10:0.5)*1000;
+  if(warn)$id('raid-banner').hidden=false;
+}
+function raidLogic(dt,t){
+  if(pendingRaidAt){
+    const remain=(pendingRaidAt-t)/1000;
+    if(!$id('raid-banner').hidden)$id('raid-count').textContent=Math.max(0,Math.ceil(remain))+'s';
+    if(t>=pendingRaidAt)doRaid(t);
+    return;
+  }
+  if(t-lastRaidAt<RAID_COOLDOWN_S*1000)return;
+  if(S.heat>=70&&t-lastRaidAt>=(S.heat>=100?45:45+Math.random()*45)*1000)scheduleRaid(t);
+  else if(S.heat>=40&&Math.random()<(S.heat-40)/2500*dt)scheduleRaid(t);
+}
+function doRaid(t){
+  lastRaidAt=t; pendingRaidAt=0; $id('raid-banner').hidden=true;
+  const pct=.2+Math.random()*.2; let stolen=S.dirty*pct;
+  S.dirty-=stolen; S.stats.raids++;
+  // Sal Marchetti: first raid each hour, 50% refunded
+  if(has('sal')&&t-S.lastSal>3600e3){ S.dirty+=stolen*.5; S.lastSal=t; toast('SAL MADE A CALL — HALF YOUR CASH CAME BACK'); }
+  const pool=RACKETS.filter(r=>r.d<=S.unlocked&&!r.front&&rs(r.id).n>0&&rs(r.id).lock<=t);
+  let lockedName='';
+  if(pool.length&&!has('ghost')){
+    const hit=pool[Math.floor(Math.random()*pool.length)];
+    rs(hit.id).lock=t+60000; lockedName=hit.name;
+  }
+  $id('raid-text').innerHTML=
+    `THEY TOOK ${stolen>=1?$$(stolen):'POCKET LINT'}${lockedName?`<br>${lockedName.toUpperCase()} SHUT DOWN 60s`:''}`;
+  const ov=$id('raid-overlay'); ov.hidden=false;
+  const rv=$id('raid-vid');
+  rv.src='videos/raid-sting.mp4'; rv.play().catch(()=>{});
+  window.Radio&&Radio.sfx.siren();
+  clearTimeout(raidTO); raidTO=setTimeout(()=>{ov.hidden=true; rv.pause();},2600);
+  checkLieuts();
+}
+
+/* ---------------- HEISTS ---------------- */
+$id('heist-btn').onclick=()=>{ if(now()>=S.heistReadyAt)openHeistPick(); else toast('THE CREW ISN\'T READY — '+mmss((S.heistReadyAt-now())/1000)); };
+
+function openHeistPick(){
+  if(drill)return;
+  const pool=HEISTS.filter(h=>h.d<=S.unlocked);
+  const picks=[];
+  while(picks.length<Math.min(3,pool.length)){
+    const h=pool[Math.floor(Math.random()*pool.length)];
+    if(!picks.includes(h))picks.push(h);
+  }
+  $id('heist-kicker').textContent='THE SCORE';
+  $id('heist-name').textContent='PICK YOUR SCORE';
+  $id('heist-pick').innerHTML=picks.map(h=>`
+    <div class="heist-card" data-h="${h.id}">
+      <div class="hc-kind">${KIND_TXT[h.kind]}</div>
+      <div class="hc-name">${h.name}</div>
+      <div class="hc-risk">${RISK_TXT[h.risk]}</div>
+      <div class="hc-take">TAKE ${$$(Math.max(300,totalIncome()*90*RISK_MULT[h.risk]))}</div>
+      <div class="hc-d">${districtOf(h.d).name}${S.vault[h.id]?' · ✓ CLEARED':''}</div>
+    </div>`).join('');
+  $id('heist-pick').hidden=false; $id('heist-play').hidden=true; $id('drill-result').hidden=true;
+  $id('heist-modal').hidden=false;
+  $id('heist-pick').querySelectorAll('.heist-card').forEach(el=>{
+    el.onclick=()=>{ const h=HEISTS.find(x=>x.id===el.dataset.h); startHeist(h); };
+  });
+}
+
+function startHeist(h){
+  clearTimeout(drillTO);
+  $id('heist-pick').hidden=true; $id('heist-play').hidden=false; $id('drill-result').hidden=true;
+  $id('heist-kicker').textContent=KIND_TXT[h.kind];
+  $id('heist-name').textContent=h.name;
+  const base={hits:0,miss:0,over:false,h,lastRAF:0};
+  drill=base;
+  if(h.kind==='drill'){
+    Object.assign(base,{pos:.5,dir:1,speed:.9,zone:{c:.5,w:.30}});
+    $id('drill-track').hidden=false; $id('boost-board').hidden=true; $id('con-board').hidden=true;
+    drawZone();
+    $id('drill-stats').innerHTML='HITS <b class="teal">0</b> · MISSES <b>0</b>';
+    $id('heist-help').innerHTML='Click / SPACE when the marker is inside the pink zone.<br>8 strikes. 4 misses and you\'re busted.';
+  }else if(h.kind==='boost'){
+    Object.assign(base,{lane:'top',carX:10,dur:(15*(has('ray')?1.25:1))*1000,t0:performance.now(),speed:38,obs:[],nextSpawn:0});
+    $id('drill-track').hidden=true; $id('boost-board').hidden=false; $id('con-board').hidden=true;
+    $id('boost-car').style.top='25%';
+    $id('boost-board').querySelectorAll('.boost-ob').forEach(e=>e.remove());
+    $id('drill-stats').innerHTML='DODGES <b class="teal">0</b> · CRASHES <b>0</b>';
+    $id('heist-help').innerHTML='Click the TOP or BOTTOM half to switch lanes.<br>Pass the roadblocks. 3 crashes and you\'re busted.';
+  }else{ // con
+    Object.assign(base,{round:0,money:0,waiting:true});
+    $id('drill-track').hidden=true; $id('boost-board').hidden=true; $id('con-board').hidden=false;
+    $id('drill-stats').innerHTML='ROUNDS <b class="teal">0</b>/3';
+    $id('heist-help').innerHTML='Watch which case flashes the money, then pick it.<br>Three rounds. No pressure.';
+    conRound();
+  }
+  drill.lastRAF=performance.now(); drillRAF=requestAnimationFrame(heistFrame);
+}
+
+function drawZone(){
+  const z=drill.zone;
+  $id('drill-zone').style.left=((z.c-z.w/2)*100)+'%';
+  $id('drill-zone').style.width=(z.w*100)+'%';
+}
+
+function heistFrame(ts){
+  if(!drill)return;
+  const dt=Math.min(.05,(ts-drill.lastRAF)/1000); drill.lastRAF=ts;
+  const d=drill;
+  if(!d.over){
+    if(d.h.kind==='drill'){
+      d.pos+=d.dir*d.speed*dt;
+      if(d.pos>1){d.pos=2-d.pos;d.dir=-1;}
+      if(d.pos<0){d.pos=-d.pos;d.dir=1;}
+      $id('drill-marker').style.left=(d.pos*100)+'%';
+    }else if(d.h.kind==='boost'){
+      boostFrame(dt,ts);
+    }
+  }
+  drillRAF=requestAnimationFrame(heistFrame);
+}
+
+function boostFrame(dt,ts){
+  const d=drill, board=$id('boost-board');
+  // spawn obstacles
+  if(ts>d.nextSpawn){
+    d.nextSpawn=ts+900+Math.random()*500;
+    const lane=Math.random()<.5?'top':'bot';
+    const el=document.createElement('div');
+    el.className='boost-ob'; el.textContent='🚧'; el.dataset.lane=lane;
+    board.appendChild(el);
+    d.obs.push({el,lane,x:100});
+  }
+  // move obstacles
+  d.speed+=dt*2.2;
+  for(const ob of d.obs){
+    ob.x-=d.speed*dt;
+    ob.el.style.left=ob.x+'%';
+    if(ob.lane===d.lane&&ob.x<d.carX+6&&ob.x>d.carX-7){        // crash
+      d.miss++; ob.el.remove(); ob.x=-99;
+      flashStats(); if(d.miss>=3){endHeist();return;}
+    }else if(ob.x<d.carX-7&&!ob.xpassed){ ob.xpassed=true; d.hits++; flashStats(); }
+  }
+  d.obs=d.obs.filter(o=>o.x>10);
+  if(ts-d.t0>d.dur)endHeist();
+}
+function flashStats(){
+  const d=drill;
+  if(d.h.kind==='drill')$id('drill-stats').innerHTML=`HITS <b class="teal">${d.hits}</b> · MISSES <b>${d.miss}</b>`;
+  else if(d.h.kind==='boost')$id('drill-stats').innerHTML=`DODGES <b class="teal">${d.hits}</b> · CRASHES <b>${d.miss}</b>`;
+}
+
+function conRound(){
+  const d=drill, board=$id('con-board');
+  board.innerHTML='';
+  d.money=Math.floor(Math.random()*4); d.waiting=true;
+  for(let i=0;i<4;i++){
+    const c=document.createElement('div');
+    c.className='con-case'; c.textContent='💼'; c.dataset.i=i;
+    board.appendChild(c);
+  }
+  const cases=board.querySelectorAll('.con-case');
+  drillTO=setTimeout(()=>{
+    cases[d.money].classList.add('flash'); cases[d.money].textContent='💰';
+    drillTO=setTimeout(()=>{
+      cases.forEach(c=>{c.classList.remove('flash');c.textContent='💼';});
+      d.waiting=false;
+    },900);
+  },500+Math.random()*400);
+}
+function conPick(i){
+  const d=drill; if(d.waiting||d.over)return;
+  const cases=$id('con-board').querySelectorAll('.con-case');
+  const right=i===d.money;
+  cases[i].classList.add('picked',right?'good':'bad');
+  cases[d.money].textContent='💰';
+  if(right)d.hits++;
+  d.round++;
+  $id('drill-stats').innerHTML=`ROUNDS <b class="teal">${d.round}</b>/3 · RIGHT <b>${d.hits}</b>`;
+  d.waiting=true;
+  drillTO=setTimeout(()=>{ if(d.round>=3)endHeist(); else conRound(); },900);
+}
+
+function strike(){
+  if(!drill||drill.over)return;
+  const d=drill;
+  if(d.h.kind==='drill'){
+    if(Math.abs(d.pos-d.zone.c)<=d.zone.w/2){
+      d.hits++; d.speed+=.07;
+      d.zone={c:.15+Math.random()*.7,w:Math.max(.12,.30-.022*d.hits)};
+      drawZone();
+    }else d.miss++;
+    flashStats();
+    if(d.miss>=4||d.hits+d.miss>=8)endHeist();
+  }else if(d.h.kind==='boost'){
+    // boost: clicks switch lanes (handled by board click); space also flips
+    d.lane=d.lane==='top'?'bot':'top';
+    $id('boost-car').style.top=d.lane==='top'?'25%':'75%';
+  }
+}
+$id('boost-board').addEventListener('click',e=>{
+  if(!drill||drill.over||drill.h.kind!=='boost')return;
+  const rect=e.currentTarget.getBoundingClientRect();
+  const lane=(e.clientY-rect.top)<rect.height/2?'top':'bot';
+  drill.lane=lane;
+  $id('boost-car').style.top=lane==='top'?'25%':'75%';
+});
+$id('con-board').addEventListener('click',e=>{
+  const c=e.target.closest('.con-case'); if(!c)return;
+  conPick(+c.dataset.i);
+});
+
+function endHeist(){
+  const d=drill; d.over=true; clearTimeout(drillTO);
+  const busted = d.h.kind==='drill'?d.miss>=4 : d.h.kind==='boost'?d.miss>=3 : false;
+  let perf;
+  if(d.h.kind==='drill')perf=d.hits>=7?1:d.hits>=5?.7:d.hits>=3?.45:.2;
+  else if(d.h.kind==='boost')perf=d.hits>=10?1:d.hits>=6?.6:.3;
+  else perf=d.hits>=3?1:d.hits===2?.6:d.hits===1?.35:0;
+  const base=Math.max(300,totalIncome()*90);
+  const pay=busted?0:base*RISK_MULT[d.h.risk]*perf*(has('camille')?1.25:1);
+  let msg;
+  if(busted){
+    S.heat=clamp(S.heat+25,0,100);
+    msg=`<span style="color:#ff5d7a">BUSTED — the alarm won.</span><br>+25 HEAT · no payday.`;
+  }else{
+    S.dirty+=pay; S.stats.dirty+=pay;
+    msg=`TAKE: <span class="gold">${$$(pay)}</span> DIRTY`;
+    const strong=d.h.kind==='con'?d.hits>=3:d.h.kind==='boost'?d.hits>=8:d.hits>=5;
+    if(strong){S.frenzy=now()+(has('destiny')?120000:60000);msg+=`<br><span class="teal">FRENZY ×2 — ${has('destiny')?'120':'60'}s!</span>`;}
+    if(perf>=1)msg+='<br><span class="teal">CLEAN GETAWAY.</span>';
+    if(d.h.kind==='con'&&d.hits===0){S.heat=clamp(S.heat+10,0,100);msg+='<br>+10 HEAT · they saw your face.';}
+  }
+  S.stats.heists++;
+  let firstClear=false;
+  if(!busted&&!S.vault[d.h.id]){ S.vault[d.h.id]=true; firstClear=true; }
+  $id('drill-track').hidden=true; $id('boost-board').hidden=true; $id('con-board').hidden=true; $id('drill-stats').hidden=true;
+  $id('heist-help').hidden=true;
+  const res=$id('drill-result'); res.hidden=false;
+  res.innerHTML=`${msg}${firstClear?'<br><span class="gold">✦ SCORE CLEARED — CINEMATIC IN THE VAULT</span>':''}<br><button class="btn btn-primary" id="drill-close" style="margin-top:12px">CASH OUT</button>`;
+  res.querySelector('#drill-close').onclick=closeHeist;
+  window.Radio&&(busted?Radio.sfx.bust():Radio.sfx.fanfare());
+  checkLieuts(); checkQueens();
+}
+function closeHeist(){
+  cancelAnimationFrame(drillRAF); drill=null; clearTimeout(drillTO);
+  $id('heist-modal').hidden=true;
+  $id('drill-stats').hidden=false; $id('heist-help').hidden=false;
+  S.heistReadyAt=now()+HEIST_EVERY_S*1000;
+  updateHeistBtn(now());
+}
+$id('heist-modal').addEventListener('click',e=>{
+  if(e.target.closest('#drill-close')||e.target.closest('.heist-card'))return;
+  if(e.target.closest('#boost-board')||e.target.closest('#con-board'))return;
+  if(drill&&!drill.over&&drill.h.kind==='drill')strike();
+});
+window.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&!$id('heist-modal').hidden){
+    e.preventDefault();
+    if(drill&&drill.over)closeHeist(); else strike();
+  }
+});
+
+/* ---------------- THE VAULT ---------------- */
+$id('btn-vault').onclick=()=>{
+  let html='<div class="stack">';
+  for(const h of HEISTS){
+    const cleared=!!S.vault[h.id];
+    html+=`<div class="up-row"><div class="p-icon">${cleared?'🏆':'🔒'}</div>
+      <div class="up-main"><div class="up-name">${h.name} <span class="tier">${KIND_TXT[h.kind]}</span></div>
+      <div class="up-desc">${districtOf(h.d).name} · ${RISK_TXT[h.risk]}</div></div>
+      ${cleared?(h.vid?`<button class="up-buy" data-vid="${h.vid}" data-n="${h.name}">WATCH</button>`:`<span class="status-locked">STILLS ONLY</span>`):''}
+    </div>`;
+  }
+  html+='</div>';
+  modal('THE VAULT',html,[{label:'CLOSE',cls:'btn-primary',fn:closeModal}]);
+  $id('modal-body').querySelectorAll('[data-vid]').forEach(b=>{
+    b.onclick=()=>{
+      modal(b.dataset.n,
+        `<video src="${b.dataset.vid}" controls autoplay muted loop playsinline></video>
+         <p class="led-line" style="margin-top:10px">First-clear cinematic.</p>`,
+        [{label:'BACK',cls:'btn-ghost',fn:()=>{$id('btn-vault').onclick();}}]);
+    };
+  });
+};
+
+/* ---------------- CREW ---------------- */
+$id('btn-crew').onclick=()=>{
+  let html='<div class="stack">';
+  for(const l of LIEUTS){
+    const hired=has(l.id);
+    html+=`<div class="up-row" style="${hired?'':'opacity:.65'}">
+      <div class="p-icon">${l.em}<img src="${l.pic}" alt="" onerror="this.remove()"></div>
+      <div class="up-main"><div class="up-name">${l.name} <span class="tier">${l.role}</span></div>
+      <div class="up-desc">${l.fx}</div></div>
+      ${hired?'<span class="status-hired">HIRED</span>':`<span class="status-locked">🔒 ${l.hint}</span>`}
+    </div>`;
+  }
+  html+='</div>';
+  modal('THE CREW',html,[{label:'CLOSE',cls:'btn-primary',fn:closeModal}]);
+};
+
+/* ---------------- LEGACY / PRESTIGE ---------------- */
+$id('btn-legacy').onclick=()=>{
+  const gain=respectGain(), can=S.unlocked>=3;
+  let html=`
+    <p>The Big Score: cash out the whole empire, retire to the Keys, and come back bigger. Everything resets — except your legend.</p>
+    <p class="led-line">RESPECT ON RETIRE: +${fmt(gain)}${can?'':' (UNLOCK DOWNTOWN FIRST)'}</p>
+    <div class="stack">`;
+  for(const t of LEGACY){
+    const lvl=S.spent[t.id], maxed=lvl>=t.max, cost=LEGACY_COSTS[lvl];
+    html+=`<div class="up-row"><div class="p-icon">${t.icon}</div>
+      <div class="up-main"><div class="up-name">${t.name} <span class="tier">LV ${lvl}/${t.max}</span></div>
+      <div class="up-desc">${t.desc}</div></div>
+      <button class="up-buy" data-l="${t.id}" ${maxed||S.respect<cost?'disabled':''}>${maxed?'MAX':cost+' RP'}</button>
+    </div>`;
+  }
+  html+=`</div>
+    <div class="up-row"><div class="p-icon">📼</div>
+      <div class="up-main"><div class="up-name">ERA II — "PRESENT DAY" ${S.era>=2?'<span class="tier">LIVE</span>':''}</div>
+      <div class="up-desc">A new skyline, a new decade, ×5 income everywhere.${S.era>=2?' You are living in it.':''}</div></div>
+      ${S.era>=2?'<span class="status-hired">ACTIVE</span>'
+        :`<button class="up-buy" data-era="2" ${S.respect<100?'disabled':''}>${S.respect<100?'🔒 100 RP':'ENTER · 100 RP'}</button>`}</div>
+    <div class="up-row"><div class="p-icon">🛸</div>
+      <div class="up-main"><div class="up-name">ERA III — "2049" <span class="tier">SOON</span></div>
+      <div class="up-desc">Chrome horizon. ×25 income. (400 RP — arriving next milestone.)</div></div>
+      <span class="status-locked">🔒 400 RP</span></div>
+    <p class="panel-title" style="font-size:16px;margin:14px 0 4px">MILESTONES</p><div class="stack">`;
+  for(const m of MILESTONES){
+    const done=!!S.mile[m.id];
+    html+=`<div class="up-row" style="${done?'':'opacity:.55'}"><div class="p-icon">${done?'★':'☆'}</div>
+      <div class="up-main"><div class="up-name">${m.name}</div></div>
+      ${done?'<span class="status-hired">EARNED</span>':''}</div>`;
+  }
+  html+='</div>';
+  modal('LEGACY · THE BIG SCORE',html,[
+    {label:`RETIRE (+${fmt(gain)} RP)`,cls:'btn-primary',fn:()=>{ if(can&&gain>0)confirmPrestige(gain); else toast(can?'NOTHING TO RETIRE ON YET':'UNLOCK DOWNTOWN FIRST'); }},
+    {label:'CLOSE',cls:'btn-ghost',fn:closeModal}]);
+  $id('modal-body').querySelectorAll('[data-l]').forEach(b=>{
+    b.onclick=()=>{
+      const id=b.dataset.l, t=LEGACY.find(x=>x.id===id), lvl=S.spent[id];
+      if(lvl>=t.max)return;
+      const cost=LEGACY_COSTS[lvl];
+      if(S.respect<cost){toast('NOT ENOUGH RESPECT');return;}
+      S.respect-=cost; S.spent[id]++; checkLieuts(); $id('btn-legacy').onclick();
+    };
+  });
+  const eraBtn=$id('modal-body').querySelector('[data-era]');
+  if(eraBtn)eraBtn.onclick=()=>{
+    if(S.era>=2||S.respect<100)return;
+    S.respect-=100; S.era=2; applyDistrict(); updateLedger(); save();
+    window.Radio&&Radio.sfx.fanfare();
+    modal('ERA II — PRESENT DAY',
+      `<p>The neon faded. The towers grew glass. Palmetto City, present day.</p>
+       <p class="led-line">INCOME ×5 EVERYWHERE · NEW SKYLINE</p>`,
+      [{label:'WELCOME TO TODAY',cls:'btn-primary',fn:closeModal}]);
+  };
+};
+function confirmPrestige(gain){
+  modal('THE BIG SCORE?',
+    `<img class="prestige-art" src="art/keyart/prestige.jpg" alt="" onerror="this.remove()">
+     <p>Sunset drive to the Keys. The empire dissolves. The legend doesn't.</p>
+     <p class="led-line">GAIN: +${fmt(gain)} RESPECT</p>
+     <p class="led-line">KEEP: CREW · VAULT · LEGACY</p>
+     <p class="led-line">LOSE: RACKETS · CASH · DISTRICTS · UPGRADES</p>`,
+    [{label:'DRIVE INTO THE SUNSET',cls:'btn-primary',fn:doPrestige},
+     {label:'NOT YET',cls:'btn-ghost',fn:closeModal}]);
+}
+function doPrestige(){
+  const kick=1e5*S.spent.kick;
+  const keep={respect:S.respect+Math.max(0,respectGain()),respectGranted:S.respectGranted+Math.max(0,respectGain()),
+              spent:S.spent,vault:S.vault,lieuts:S.lieuts,stats:S.stats,lastSal:S.lastSal,era:S.era};
+  S=Object.assign(defaultState(),keep);
+  S.dirty=kick;
+  S.heistReadyAt=now()+HEIST_FIRST_S*1000;
+  applyDistrict(); renderUpgrades(); updateCards(now()); updateHUD(now()); updateLedger();
+  closeModal(); checkLieuts();
+  toast('THE BIG SCORE PULLED — WELCOME BACK TO THE STRIP');
+}
+
+/* ---------------- THE QUEENS ---------------- */
+function checkQueens(){
+  for(const q of QUEENS){
+    if(!S.queens[q.id]&&q.unlock(S)){
+      S.queens[q.id]=true;
+      toast(q.name.toUpperCase()+' JOINED YOUR SIDE — '+q.fx.toUpperCase());
+      window.Radio&&Radio.sfx.fanfare();
+    }
+  }
+}
+function checkMilestones(){
+  for(const m of MILESTONES){
+    if(!S.mile[m.id]&&m.test(S)){
+      S.mile[m.id]=true;
+      toast('★ MILESTONE — '+m.name.toUpperCase());
+      window.Radio&&Radio.sfx.blip(990);
+    }
+  }
+}
+$id('btn-queens').onclick=()=>{
+  const hired=Object.keys(S.queens).length;
+  const cost=Math.max(1000,totalIncome()*60);
+  const cd=Math.max(0,S.nightCd-now()), inspired=S.inspiredUntil>now();
+  let html=`<p>The Queens of Palmetto City. Powerful people. Powerful perks.</p><div class="stack">`;
+  for(const q of QUEENS){
+    const mine=!!S.queens[q.id];
+    html+=`<div class="up-row" style="${mine?'':'opacity:.65'}">
+      <div class="p-icon">${q.em}<img src="${q.pic}" alt="" onerror="this.remove()"></div>
+      <div class="up-main"><div class="up-name">${q.name} <span class="tier">${q.title}</span></div>
+      <div class="up-desc">${q.fx}</div></div>
+      ${mine?'<span class="status-hired">WITH YOU</span>':`<span class="status-locked">🔒 ${q.hint}</span>`}
+    </div>`;
+  }
+  html+=`</div>
+    <p class="led-line">NIGHT ON THE TOWN: ${$$(cost)} DIRTY → INSPIRED ×2 INCOME, 60s</p>`;
+  const can=hired>0&&S.dirty>=cost&&cd===0&&!inspired;
+  modal('THE QUEENS',html,[
+    {label:cd>0?'THE NIGHT NEEDS '+(Math.ceil(cd/1000))+'s':inspired?'ALREADY INSPIRED':hired?'NIGHT ON THE TOWN':'NO QUEENS YET',cls:'btn-primary',fn:()=>{
+       if(!can){toast(hired?'CHECK BACK LATER':'THE QUEENS DON\'T RUN WITH STRANGERS');return;}
+       S.dirty-=cost; S.inspiredUntil=now()+60000; S.nightCd=now()+600000;
+       const q=QUEENS.filter(x=>S.queens[x.id]);
+       toast(NIGHT_LINES[q.length?Math.floor(Math.random()*q.length):0]);
+       window.Radio&&Radio.sfx.fanfare();
+     }},
+    {label:'CLOSE',cls:'btn-ghost',fn:closeModal}]);
+};
+
+/* ---------------- RADIO UI ---------------- */
+function updateRadioFace(){
+  if(!window.Radio)return;
+  const face=$id('radio'), name=$id('radio-name'), sub=$id('radio-sub');
+  face.classList.remove('live'); void face.offsetWidth; face.classList.add('live');
+  name.textContent=Radio.STATIONS[Radio.station].name;
+  sub.textContent=RADIO_SUBS[Radio.station%RADIO_SUBS.length];
+  $id('radio-mute').textContent=Radio.muted?'🔇':'🔊';
+}
+function wireRadio(){
+  if(!window.Radio)return;
+  $id('radio-prev').onclick=()=>{Radio.prev();S.radio.st=Radio.station;updateRadioFace();Radio.sfx.tick();};
+  $id('radio-next').onclick=()=>{Radio.next();S.radio.st=Radio.station;updateRadioFace();Radio.sfx.tick();};
+  $id('radio-mute').onclick=()=>{S.radio.muted=Radio.toggleMute();updateRadioFace();};
+  updateRadioFace();
+}
+
+/* ---------------- SIDE HUSTLES ---------------- */
+const GATORS=[
+  {name:'Bitey', odds:1.8, hue:0},
+  {name:'Chompy', odds:2.6, hue:90},
+  {name:'El Jefe', odds:4.2, hue:180},
+  {name:'Noodle', odds:7,   hue:300},
+];
+const RACE_CD=60000;
+function actStake(){ return Math.max(500,Math.round(totalIncome()*60)); }   // street race
+function gatorStake(){ return Math.max(500,Math.round(totalIncome()*90)); }
+
+$id('btn-play').onclick=()=>{
+  modal('SIDE HUSTLES',
+    `<p>Palmetto City never sleeps. Neither does its money.</p><div class="stack">
+     <div class="up-row"><div class="p-icon">🏁</div><div class="up-main"><div class="up-name">STREET RACES</div>
+       <div class="up-desc">Five gears. Nail the shift. Wager pays ×2${has('roxy')?' · ROXY ×2':''} · 60s between runs</div></div>
+       <button class="up-buy" data-a="street" ${S.unlocked<2||now()<S.acts.scd?'disabled':''}>${S.unlocked<2?'D2':now()<S.acts.scd?'⏱':'RACE'}</button></div>
+     <div class="up-row"><div class="p-icon">🐊</div><div class="up-main"><div class="up-name">GATOR RACES</div>
+       <div class="up-desc">Four gators, one swamp. Odds ×1.8 to ×7${has('yara')?' · YARA ×1.5':''}</div></div>
+       <button class="up-buy" data-a="gator" ${S.unlocked<5||now()<S.acts.gcd?'disabled':''}>${S.unlocked<5?'D5':now()<S.acts.gcd?'⏱':'BET'}</button></div>
+     <div class="up-row"><div class="p-icon">🎟️</div><div class="up-main"><div class="up-name">SCRATCH CARDS</div>
+       <div class="up-desc">Three of a kind walks away rich.</div></div>
+       <button class="up-buy" data-a="scratch">SCRATCH</button></div>
+     </div>`,
+    [{label:'CLOSE',cls:'btn-primary',fn:closeModal}]);
+  $id('modal-body').querySelectorAll('[data-a]').forEach(b=>{
+    b.onclick=()=>{ window.Radio&&Radio.sfx.tick();
+      if(b.dataset.a==='street')openStreetRace();
+      else if(b.dataset.a==='gator')openGatorRace();
+      else openScratch();
+    };
+  });
+};
+
+/* ----- street race ----- */
+let streetRAF=0;
+function openStreetRace(){
+  if(now()<S.acts.scd){toast('THE STRIP NEEDS A BREATH — '+mmss((S.acts.scd-now())/1000));return;}
+  const stake=actStake();
+  if(S.dirty<stake){toast('NEED '+$$(stake)+' DIRTY TO ENTER');return;}
+  S.dirty-=stake; S.acts.races++; S.acts.scd=now()+RACE_CD;
+  modal('STREET RACE',
+    `<p class="led-line">STAKE ${$$(stake)} · WIN ${$$(stake*2*(has('roxy')?2:1))}</p>
+     <div id="sr-track" style="position:relative;height:54px;border-radius:10px;max-width:520px;margin:12px auto;cursor:pointer;
+       background:repeating-linear-gradient(90deg,#1a1430 0 26px,#201939 26px 52px);border:1px solid rgba(88,247,255,.5);overflow:hidden">
+       <div id="sr-zone" style="position:absolute;top:0;bottom:0;background:rgba(22,224,189,.35);border-left:2px solid var(--teal);border-right:2px solid var(--teal)"></div>
+       <div id="sr-marker" style="position:absolute;top:0;bottom:0;width:5px;background:#fff;box-shadow:0 0 14px #fff"></div>
+     </div>
+     <div id="race-meter">0 MPH</div><div id="race-gear">GEAR 1 / 5 — TAP THE GREEN</div>`,
+    []);
+  const st={pos:0,dir:1,speed:.85,gear:1,mph:0,zone:{c:.5,w:.22},last:performance.now(),over:false};
+  const track=$id('sr-track');
+  const draw=()=>{ $id('sr-marker').style.left=(st.pos*100)+'%';
+    $id('sr-zone').style.left=((st.zone.c-st.zone.w/2)*100)+'%'; $id('sr-zone').style.width=(st.zone.w*100)+'%'; };
+  draw();
+  const frame=ts=>{
+    if(!st.over){ const dt=Math.min(.05,(ts-st.last)/1000); st.last=ts;
+      st.pos+=st.dir*st.speed*dt;
+      if(st.pos>1){st.pos=2-st.pos;st.dir=-1;} if(st.pos<0){st.pos=-st.pos;st.dir=1;}
+      $id('sr-marker').style.left=(st.pos*100)+'%';
+    }
+    streetRAF=requestAnimationFrame(frame);
+  };
+  streetRAF=requestAnimationFrame(frame);
+  const strikeR=()=>{
+    if(st.over)return;
+    const off=Math.abs(st.pos-st.zone.c);
+    let gain,word;
+    if(off<=st.zone.w*.25){gain=28;word='PERFECT!';}
+    else if(off<=st.zone.w*.5){gain=19;word='GOOD';}
+    else{gain=6;word='BOGGED';}
+    st.mph+=gain; st.speed+=.12;
+    $id('race-meter').textContent=Math.round(st.mph)+' MPH';
+    window.Radio&&Radio.sfx.blip(440+st.gear*110);
+    if(st.gear>=5){ endStreet(st,stake); return; }
+    st.gear++;
+    $id('race-gear').textContent=`GEAR ${st.gear} / 5 — ${word}`;
+    st.zone={c:.15+Math.random()*.7,w:Math.max(.12,.22-.015*st.gear)};
+    draw();
+  };
+  track.onclick=strikeR;
+}
+function endStreet(st,stake){
+  st.over=true; cancelAnimationFrame(streetRAF);
+  const win=st.mph>=100, mult=2*(has('roxy')?2:1);
+  let body=`<div id="race-meter">${Math.round(st.mph)} MPH</div>`;
+  if(win){ S.dirty+=stake*mult; S.acts.swins++;
+    body+=`<p class="led-line" style="color:var(--teal)">WINNER — ${$$(stake*mult)} DIRTY</p>`;
+    window.Radio&&Radio.sfx.fanfare();
+  }else{ body+=`<p class="led-line" style="color:#ff5d7a">OUT-DRAGGED. THE STAKE'S GONE.</p>`; window.Radio&&Radio.sfx.bust(); }
+  modal('STREET RACE — RESULT',body,[{label:'ROLL OUT',cls:'btn-primary',fn:()=>{closeModal();checkQueens();}}]);
+}
+
+/* ----- gator race ----- */
+let gatorTO=0;
+function openGatorRace(){
+  if(now()<S.acts.gcd){toast('THE SWAMP NEEDS A BREATH — '+mmss((S.acts.gcd-now())/1000));return;}
+  const stake=gatorStake();
+  if(S.dirty<stake){toast('NEED '+$$(stake)+' DIRTY TO ENTER');return;}
+  let html=`<p class="led-line">STAKE ${$$(stake)} · PICK YOUR GATOR</p>`;
+  GATORS.forEach((g,i)=>{
+    html+=`<div class="racer" data-i="${i}">
+      <div class="r-ico" style="filter:hue-rotate(${g.hue}deg)">🐊</div>
+      <div class="r-track"><i></i></div>
+      <div class="r-odds">×${g.odds}</div>
+      <button class="btn btn-mini">BET ${g.name.toUpperCase()}</button>
+    </div>`;
+  });
+  html+=`<div id="gator-status" class="led-line" style="margin-top:8px"></div>`;
+  modal('GATOR RACES',html,[{label:'WALK AWAY',cls:'btn-ghost',fn:closeModal}]);
+  $id('modal-body').querySelectorAll('.racer button').forEach(b=>{
+    b.onclick=()=>runGator(+b.closest('.racer').dataset.i,stake);
+  });
+}
+function runGator(pick,stake){
+  S.dirty-=stake; S.acts.races++; S.acts.gcd=now()+RACE_CD;
+  const rows=[...$id('modal-body').querySelectorAll('.racer')];
+  rows.forEach(r=>r.querySelector('button').disabled=true);
+  const prog=GATORS.map(()=>0);
+  $id('gator-status').textContent='THEY\'RE OFF!';
+  clearInterval(gatorTO);
+  gatorTO=setInterval(()=>{
+    let done=-1;
+    GATORS.forEach((g,i)=>{
+      if(prog[i]>=100)return;
+      prog[i]+=3.4*Math.pow(1/g.odds,.65)*(0.4+Math.random()*1.2);
+      rows[i].querySelector('.r-track i').style.width=Math.min(100,prog[i])+'%';
+      if(prog[i]>=100&&done<0)done=i;
+    });
+    if(done>=0){
+      clearInterval(gatorTO);
+      rows.forEach((r,i)=>{ if(i===done)r.classList.add('done'); });
+      const g=GATORS[done];
+      if(pick===done){
+        const pay=stake*g.odds*(has('yara')?1.5:1);
+        S.dirty+=pay; S.acts.gwins++;
+        $id('gator-status').innerHTML=`<span class="gold">${g.name.toUpperCase()} TAKES IT — ${$$(pay)} DIRTY!</span>`;
+        window.Radio&&Radio.sfx.fanfare();
+      }else{
+        $id('gator-status').innerHTML=`<span style="color:#ff5d7a">${g.name.toUpperCase()} TAKES IT. YOUR GATOR WENT FOR A SNACK.</span>`;
+        window.Radio&&Radio.sfx.bust();
+      }
+      setTimeout(()=>{ modal('GATOR RACES — RESULT',$id('gator-status').innerHTML,
+        [{label:'BACK TO THE SWAMP',cls:'btn-primary',fn:()=>{closeModal();checkQueens();}}]); },600);
+    }
+  },110);
+}
+
+/* ----- scratch cards ----- */
+const SCRATCH_SYMS=['🍒','🍋','⭐','🔔','💎','7️⃣','🌴','🐍'];
+function openScratch(){
+  const cost=Math.max(500,Math.round(totalIncome()*30));
+  if(S.dirty<cost){toast('NEED '+$$(cost)+' DIRTY');return;}
+  S.dirty-=cost; S.acts.scratch++;
+  const bag=[]; SCRATCH_SYMS.forEach((s,i)=>{ for(let k=0;k<[13,13,12,12,12,12,12,12][i];k++)bag.push(s); });
+  const cells=Array.from({length:9},()=>bag[Math.floor(Math.random()*bag.length)]);
+  modal('SCRATCH CARD',
+    `<p class="led-line">CARD ${$$(cost)} · 4 OF A KIND ×2.5 · 5+ ×30</p>
+     <div class="scratch">${cells.map((c,i)=>`<div class="scell" data-i="${i}">?</div>`).join('')}</div>
+     <div id="scr-status" class="led-line">TAP THE CARD</div>`,
+    [{label:'TOSS IT',cls:'btn-ghost',fn:closeModal}]);
+  let rev=0;
+  const grid=$id('modal-body').querySelectorAll('.scell');
+  grid.forEach(el=>el.onclick=()=>{
+    if(el.classList.contains('rev'))return;
+    el.classList.add('rev'); el.textContent=cells[+el.dataset.i];
+    window.Radio&&Radio.sfx.tick();
+    if(++rev===9)scoreScratch(cells,cost,grid);
+  });
+}
+function scoreScratch(cells,cost,grid){
+  const counts={}; cells.forEach(c=>counts[c]=(counts[c]||0)+1);
+  let best=0,bsym=null;
+  for(const [s,n] of Object.entries(counts)){ if(n>best){best=n;bsym=s;} }
+  const mult=best>=5?30:best===4?2.5:0;
+  if(mult>0){ grid.forEach(el=>{ if(el.textContent===bsym)el.classList.add('win'); }); }
+  const pay=cost*mult;
+  if(pay>0){ S.dirty+=pay; $id('scr-status').innerHTML=`<span class="gold">${best}× ${bsym} — ${$$(pay)} DIRTY!</span>`; window.Radio&&Radio.sfx.chaChing(); }
+  else $id('scr-status').textContent='NOTHING. THE HOUSE SENDS ITS REGARDS.';
+}
+
+/* ---------------- MODAL ---------------- */
+function modal(title,bodyHTML,buttons){
+  $id('modal-title').textContent=title;
+  $id('modal-body').innerHTML=bodyHTML;
+  const bx=$id('modal-buttons'); bx.innerHTML='';
+  for(const b of buttons||[]){
+    const el=document.createElement('button');
+    el.className='btn '+(b.cls||''); el.textContent=b.label;
+    el.onclick=()=>{ if(!b.keep)closeModal(); if(b.fn)b.fn(); };
+    bx.appendChild(el);
+  }
+  $id('modal').hidden=false;
+}
+function closeModal(){ $id('modal').hidden=true; }
+
+function settingsModal(){
+  modal('SETTINGS',
+    `<p style="margin-bottom:6px">Progress saves automatically in this browser.</p>
+     <div>EXPORT SAVE</div>
+     <textarea id="exp" readonly>${JSON.stringify(S)}</textarea>
+     <div>IMPORT SAVE</div>
+     <textarea id="imp" placeholder="paste a save string…"></textarea>`,
+    [{label:'IMPORT',cls:'btn-ghost',fn:()=>{
+        try{
+          const d=JSON.parse($id('imp').value);
+          if(!d||d.v>SAVE_VER)throw 0;
+          S=Object.assign(defaultState(),d); save(); location.reload();
+        }catch(e){toast('THAT SAVE DON\'T ROLL');}
+     },keep:true},
+     {label:'WIPE SAVE',cls:'btn-ghost',fn:()=>{
+        modal('WIPE EVERYTHING?','<p>The empire. Gone. Like it never happened.</p>',
+          [{label:'WIPE',cls:'btn-primary',fn:()=>{try{localStorage.removeItem(SAVE_KEY);}catch(e){} location.reload();}},
+           {label:'KEEP',cls:'btn-ghost',fn:closeModal}]);
+     }},
+     {label:'CLOSE',cls:'btn-primary',fn:closeModal}]);
+}
+$id('btn-settings').onclick=settingsModal;
+
+/* ---------------- INTRO / OFFLINE ---------------- */
+function introModal(){
+  modal('PALMETTO CITY, 1986',
+    `<p>You've got rented shoes, a borrowed Slim Jim, and six blocks of bad decisions ahead of you.</p>
+     <p style="margin-top:8px">Hotwire something. Any cash you make <b style="color:var(--pink)">dirty</b> stays
+     <b style="color:var(--pink)">dirty</b> until you wash it. The cops are counting.</p>
+     <p class="led-line" id="boost-line" style="margin-top:14px">HOTWIRING… <span id="boost-pct">0%</span></p>`,
+    []);
+  const bx=$id('modal-buttons');
+  const b=document.createElement('button');
+  b.className='btn btn-primary'; b.id='btn-boost'; b.style.fontSize='20px'; b.textContent='⚡ BOOST';
+  bx.appendChild(b);
+  let clicks=0;
+  b.onclick=()=>{
+    if(clicks<10){
+      clicks++; S.dirty+=5; S.stats.dirty+=5;
+      $id('boost-pct').textContent=(clicks*10)+'%';
+      if(clicks===10){b.textContent='HIT THE STRIP →';$id('boost-line').textContent='ENGINE\'S LIVE. GO.';}
+    }else{ closeModal(); toast('FIRST RACKET: BOOSTING CARS — $50'); }
+  };
+}
+function offlineCheck(){
+  const dt=clamp((now()-S.ts)/1000,0,OFFLINE_CAP_S);
+  if(dt<OFFLINE_MIN_S)return;
+  const offMult=has('vivienne')?1.5:1;
+  const inc=totalIncome()*dt*offMult, wash=Math.min(totalWash()*dt,S.dirty+inc);
+  S.dirty+=inc-wash; S.clean+=wash; S.stats.dirty+=inc; S.stats.clean+=wash;
+  modal('WHILE YOU WERE GONE',
+    `<p class="led-line">TIME AWAY: ${mmss(dt)}</p>
+     <p class="led-line">CREWS BROUGHT IN: <span style="color:var(--pink)">${$$(inc)}</span> DIRTY</p>
+     <p class="led-line">WASHED: <span class="gold">${$$(wash)}</span> CLEAN</p>
+     <p style="margin-top:8px">Your lawyer answered the phone. The heat didn't move.</p>`,
+    [{label:'BACK TO WORK',cls:'btn-primary',fn:closeModal}]);
+}
+
+/* ---------------- TICK ---------------- */
+function sim(dt,t){
+  const inc=totalIncome()*dt;
+  if(inc>0){ S.dirty+=inc; S.stats.dirty+=inc; }
+  const conv=Math.min(totalWash()*dt,S.dirty);
+  if(conv>0){ S.dirty-=conv; S.clean+=conv; S.stats.clean+=conv; }
+  const net=totalHeat()-decayRate();
+  S.heat=clamp(S.heat+net*dt,0,100);
+  if(S.heat>=100&&!S.tf){ S.tf=true; toast('TASK FORCE! INCOME −25% UNTIL HEAT < 50'); }
+  if(S.tf&&S.heat<50){ S.tf=false; toast('THE TASK FORCE BACKED OFF'); }
+  raidLogic(dt,t);
+}
+const tick={last:0};
+setInterval(()=>{
+  const t=now(); let dt=(t-(tick.last||t))/1000; tick.last=t;
+  dt=clamp(dt,0,5);
+  if(started){
+    if(!isPaused()){ sim(dt,t); checkLieuts(); checkQueens(); checkMilestones(); }
+    updateCards(t); updateHUD(t); updateLedger(); updateHeistBtn(t);
+  }
+},TICK_MS);
+setInterval(()=>{ if(started){ tickIdx=(tickIdx+1)%TICKER.length;
+  const el=$id('ticker-text');
+  el.style.animation='none'; void el.offsetWidth; el.style.animation='';
+  el.textContent='DJ KRM · WPLM 103.5 — '+TICKER[tickIdx];
+}},12000);
+setInterval(()=>{ if(started)save(); },5000);
+window.addEventListener('beforeunload',()=>{ if(started)save(); });
+
+/* ---------------- BOOT ---------------- */
+function startGame(cont){
+  $id('title-screen').style.display='none';
+  $id('game').hidden=false;
+  started=true;
+  // some browsers gate muted autoplay until a real gesture — retry on first interaction
+  $id('game').addEventListener('pointerdown',()=>{ const v=$id('bg-video'); if(v.src&&v.paused)v.play().catch(()=>{}); },{once:false});
+  applyDistrict(); renderUpgrades(); updateCards(now()); updateHUD(now()); updateLedger();
+  tick.last=now();
+  $id('ticker-text').textContent='DJ KRM · WPLM 103.5 — '+TICKER[0];
+  if(cont)offlineCheck();
+}
+function boot(){
+  // debug/testing hook (dev only — game never depends on it)
+  window.VH={
+    get S(){return S}, set S(v){S=v},
+    get drill(){return drill},
+    scheduleRaid, doRaid, openHeistPick, startHeist, strike, closeHeist, save,
+    totalIncome, totalHeat, totalWash, doPrestige,
+    checkQueens, openStreetRace, openGatorRace, openScratch, bribeCost,
+    get Radio(){return window.Radio;},
+  };
+  if(reducedMotion()){ $id('title-video').hidden=true; $id('title-poster').hidden=false; }
+  // radio: restore prefs, wire UI, start audio on the first real interaction
+  if(window.Radio){
+    Radio.setMuted(S.radio.muted);
+    Radio.setStation(S.radio.st);
+    wireRadio();
+    document.addEventListener('pointerdown',()=>Radio.init(),{once:true});
+  }
+  // district video: show only while truly playing, fall back to the painted still otherwise
+  const bgv=$id('bg-video');
+  bgv.addEventListener('playing',()=>bgv.classList.add('show'));
+  bgv.addEventListener('pause',()=>bgv.classList.remove('show'));
+  bgv.addEventListener('error',()=>bgv.classList.remove('show'));
+  const has=load();
+  if(has){ $id('btn-continue').hidden=false; $id('btn-wipe').hidden=false; }
+  $id('btn-continue').onclick=()=>startGame(true);
+  $id('btn-wipe').onclick=()=>modal('WIPE EVERYTHING?','<p>The empire. Gone. Like it never happened.</p>',
+    [{label:'WIPE',cls:'btn-primary',fn:()=>{try{localStorage.removeItem(SAVE_KEY);}catch(e){} location.reload();}},
+     {label:'KEEP',cls:'btn-ghost',fn:closeModal}]);
+  $id('btn-new').onclick=()=>{
+    if(has){
+      modal('START OVER?','<p>You\'ve got a save on ice. Starting fresh wipes it.</p>',
+        [{label:'FRESH START',cls:'btn-primary',fn:()=>{
+           S=defaultState(); S.heistReadyAt=now()+HEIST_FIRST_S*1000;
+           startGame(false); introModal();
+         }},
+         {label:'KEEP MY SAVE',cls:'btn-ghost',fn:closeModal}]);
+    }else{
+      S=defaultState(); S.heistReadyAt=now()+HEIST_FIRST_S*1000;
+      startGame(false); introModal();
+    }
+  };
+}
+boot();
