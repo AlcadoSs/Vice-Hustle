@@ -171,6 +171,7 @@ function defaultState(){
     vault:{}, lieuts:{}, lastSal:0, era:1,
     radio:{st:0,muted:true}, acts:{races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},
     queens:{}, inspiredUntil:0, nightCd:0, mile:{},
+    msgs:[], unreadMsgs:0, msgBuff:null,
     heistReadyAt:0, frenzy:0, ts:Date.now(),
     stats:{dirty:0,clean:0,raids:0,heists:0},
   };
@@ -218,10 +219,14 @@ function rs(id){ return S.r[id]||(S.r[id]={n:0,lock:0}); }
 function mile(n){ return n>=500?100:n>=100?10:n>=50?4:n>=25?2:1; }
 function nextMile(n){ return n>=500?Infinity:n>=100?500:n>=50?100:n>=25?50:25; }
 function has(id){ return !!(S.lieuts[id]||S.queens[id]); }
+function msgBuffActive(type){
+  return S.msgBuff&&S.msgBuff.until>now()&&S.msgBuff.type===type;
+}
 function globalMult(){
   let m=1+.25*S.spent.empire;
   if(S.era===2)m*=5; else if(S.era===3)m*=25;
   if(S.frenzy>now()||S.inspiredUntil>now())m*=2;
+  if(msgBuffActive('solana')||msgBuffActive('destiny'))m*=1.1;
   if(S.tf)m*=.75;
   return m;
 }
@@ -239,6 +244,7 @@ function washOf(r){
   let w=r.lau*st.n*mile(st.n)*(1+.5*S.up.washers)*(1+.15*S.spent.laundry);
   if(has('betty'))w*=1.25;
   if(has('tang'))w*=1.05;
+  if(msgBuffActive('vivienne'))w*=1.1;
   return w;
 }
 function districtRackets(d){ return RACKETS.filter(r=>r.d===d); }
@@ -262,6 +268,7 @@ function totalWash(){ let x=0; for(const d of DISTRICTS){ if(d.id>S.unlocked)bre
 function decayRate(){
   let d=.5+.5*S.up.lawyer+S.heat*.025;
   if(has('kmr'))d+=.5;
+  if(msgBuffActive('yara'))d+=1;
   return d;
 }
 function costOf(r,k){ const cur=rs(r.id).n,b=r.cost*Math.pow(1.15,cur); return b*(Math.pow(1.15,k)-1)/.15; }
@@ -286,6 +293,9 @@ function load(){
     S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},d.acts);
     S.queens=d.queens||{};
     S.mile=d.mile||{};
+    S.msgs=Array.isArray(d.msgs)?d.msgs:[];
+    S.unreadMsgs=d.unreadMsgs||0;
+    S.msgBuff=d.msgBuff||null;
     // sanitize: heal saves poisoned by an old Infinity payout (JSON turns Infinity into null)
     for(const k of ['dirty','clean','heat','respect','respectGranted','lastSal','heistReadyAt','frenzy','inspiredUntil','nightCd']){
       const v=S[k];
@@ -489,6 +499,7 @@ function confirmUnlock(d){
     [{label:'UNLOCK',cls:'btn-primary',fn:()=>{
         if(S.clean<d.unlock){toast('NOT ENOUGH CLEAN MONEY');return;}
         S.clean-=d.unlock; S.unlocked=d.id; S.active=d.id; applyDistrict(); checkLieuts();
+        msgFrom(Math.random()<.5?'kmr':'ray','districtUnlock');
         toast(d.name+' IS OPEN FOR BUSINESS');
      }},
      {label:'NOT YET',cls:'btn-ghost',fn:closeModal}]);
@@ -531,6 +542,8 @@ function doRaid(t){
   window.Radio&&Radio.sfx.siren();
   clearTimeout(raidTO); raidTO=setTimeout(()=>{ov.hidden=true; rv.pause();},2600);
   checkLieuts();
+  const raidPool=['sal','ghost','solana','camille'];
+  msgFrom(raidPool[Math.floor(Math.random()*raidPool.length)],'raidSurvived');
 }
 
 /* ---------------- HEISTS ---------------- */
@@ -828,7 +841,7 @@ function endHeist(){
   else if(d.h.kind==='boost')perf=d.miss===0?1:d.miss===1?.6:.3;
   else perf=d.hits>=3?1:d.hits===2?.6:d.hits===1?.35:0;
   const base=Math.max(300,totalIncome()*90);
-  const pay=busted?0:base*RISK_MULT[d.h.risk]*perf*(has('camille')?1.25:1);
+  const pay=busted?0:base*RISK_MULT[d.h.risk]*perf*(has('camille')?1.25:1)*(msgBuffActive('camille')?1.1:1);
   // theater: gold or red wash
   const wash=document.createElement('div');
   wash.className=busted?'redwash':'goldwash';
@@ -854,6 +867,10 @@ function endHeist(){
   res.querySelector('#drill-close').onclick=closeHeist;
   window.Radio&&(busted?Radio.sfx.bust():Radio.sfx.fanfare());
   checkLieuts(); checkQueens();
+  // Pulse messages
+  const pool=busted?['sal','solana','camille','roxy','yara','destiny','vivienne','ghost']:
+                    ['solana','camille','roxy','yara','destiny','vivienne','ray','kmr'];
+  msgFrom(pool[Math.floor(Math.random()*pool.length)],busted?'heistBust':'heistWin');
 }
 function closeHeist(){
   cancelAnimationFrame(drillRAF); drill=null; clearTimeout(drillTO); clearInterval(chaseTO);
@@ -912,6 +929,7 @@ function checkQueens(){
       S.queens[q.id]=true; joined=true;
       toast(q.name.toUpperCase()+' JOINED YOUR SIDE — '+q.fx.toUpperCase());
       window.Radio&&Radio.sfx.fanfare();
+      msgFrom(q.id,'queenUnlock');
     }
   }
   if(joined&&$id('scr-queens').classList.contains('on'))renderQueensApp();
@@ -1112,7 +1130,7 @@ function shiftDrag(){
 }
 function endDrag(){
   const r=dragR;r.over=true;r.cleanup&&r.cleanup();
-  const win=r.mph>=100, pay=r.stake*2*(has('roxy')?2:1);
+  const win=r.mph>=100, pay=r.stake*2*(has('roxy')?2:1)*(msgBuffActive('roxy')?1.1:1);
   if(win){S.acts.swins++;S.dirty+=pay;payToast(pay);}
   const st=$id('sv-stage');
   if(st){
@@ -1331,6 +1349,164 @@ function confettiBurst(){
   }
 }
 
+/* ============================================================
+   PULSE · messages from the Queens & crew
+   ============================================================ */
+const MSG_CHAR={
+  solana:  {name:'Solana',   pic:'art/queens/solana.jpg',  em:'👑'},
+  camille: {name:'Camille',  pic:'art/queens/camille.jpg', em:'🍸'},
+  roxy:    {name:'Roxy',     pic:'art/queens/roxy.jpg',    em:'🏁'},
+  yara:    {name:'Yara',     pic:'art/queens/yara.jpg',    em:'🐊'},
+  destiny: {name:'Destiny',  pic:'art/queens/destiny.jpg', em:'🎤'},
+  vivienne:{name:'Vivienne', pic:'art/queens/vivienne.jpg',em:'🛥️'},
+  ray:     {name:'Ray',      pic:'art/portraits/ray.jpg',  em:'🕶️'},
+  sal:     {name:'Sal',      pic:'art/portraits/sal.jpg',  em:'🕴️'},
+  kmr:     {name:'DJ KRM',   pic:'art/portraits/kmr.jpg',  em:'🎧'},
+  ghost:   {name:'Ghost',    pic:'art/portraits/ghost.jpg',em:'👤'},
+  system:  {name:'PALMETROCOM',pic:'',                      em:'📡'},
+};
+const MSG_POOLS={
+  heistWin:{
+    solana:['That take was HOT, hot stuff. The beach is calling — bring champagne. 🏖️','You cracked it open like a coconut. I love that about you.','Big money, bigger smile. I saw the lights from the shore. ✨'],
+    camille:['Darling, that was exquisite. The cage, the drill, the exit — pure theatre. 🥂','I had the champagne ready before you called. I know your timing.','Another flawless performance. My suite, midnight.'],
+    roxy:['THAT was a RUN. My heart\'s still doing 140. 💨','Clean take, baby. The getaway was better than the money.','You drive that drill like I drive the strip. Respect.'],
+    yara:['The swamp knew before you did. The gators were quiet tonight. 🐊','Good harvest. Kevin says hello. Don\'t ask who Kevin is.','The water told me you\'d win. The water is rarely wrong.'],
+    destiny:['Baby that was EVERYTHING. I\'m writing a song about it. 🎙️','I told my stylist about your score. She fainted.','The lights, the money, the DRAMA. You get me.'],
+    vivienne:['Acceptable. The yacht is fuelled for the weekend. Don\'t be late. 🛥️','I had the papers drawn before you finished. Efficiency is attractive.','Well. That\'ll cover the champagne budget. Barely.'],
+    ray:['Clean. 🚬','Heard you pulled it. Not bad.','That\'s how it\'s done.'],
+    kmr:['Someone just pulled a SCORE in Palmetto City — you know who you are. The city\'s TALKING. 📻','That last job? FIRE. This is DJ KRM and I approve. 📻'],
+  },
+  heistBust:{
+    solana:['Oh no. Are you okay, hot stuff? Come to the beach, the salt air fixes everything. 🌊','Babe. Breathe. The sun still rose. It always does.'],
+    camille:['Darling. I\'ve already called my lawyer. Don\'t say a word to anyone.','That was… unfortunate. We\'ll discuss it over dinner. Dress better.'],
+    roxy:['Oof. That was a wreck, not a crash. Walk it off and get back in. 🔧','Hey — even I blow a gasket sometimes. You\'ll get the next one.'],
+    yara:['The swamp says: patience. Even the gator waits. 🐊','Failure is just the water settling. Try again when the mist clears.'],
+    destiny:['OH NO baby. I can\'t LOOK. Call me when it\'s fixed. 🎤','That was a DISASTER and I\'m writing a ballad about it. A sad one.'],
+    vivienne:['We need to talk. My office. Now. 🛥️','I\'ve already recovered the losses. You\'re welcome. Don\'t let it happen again.'],
+    sal:['I may have handled it. Don\'t ask how. Don\'t ask how much. 💼','Okay so the good news is you\'re not in a cell. The bad news is everything else.'],
+    ghost:['I was never there. You were never here. Continue.'],
+  },
+  raidSurvived:{
+    sal:['The scanners lit up, I made three calls, it\'s handled. You owe me. 💼','That was close. I aged a decade. My heart can\'t do this.'],
+    ghost:['They found nothing. They always find nothing.','Stay dark for forty-eight hours.'],
+    solana:['Those sirens scared me! Are you okay? Come lay in the sun. 🌴','Babe the cops were EVERYWHERE. I was watching from the lifeguard tower.'],
+    camille:['I saw the lights from the penthouse. Exhilarating. Are you hurt, darling?'],
+  },
+  taskForce:{
+    sal:['LAY LOW. I\'m serious. Task Force means Task Force. Turn everything off. 💼','This is bad. This is very bad. I\'m making calls. STAY INSIDE.'],
+    ghost:['The city has teeth tonight. Disappear.','They know your face. Change it.'],
+  },
+  districtUnlock:{
+    kmr:['NEW TURF just opened up in Palmetto City and somebody\'s already moving in. This is DJ KRM, signing your lease. 📻','The map just got BIGGER. New money, new problems. You know the vibe. 📻'],
+    ray:['New streets. New money. Same game. Let\'s ride.'],
+    sal:['I pulled the permits. Don\'t ask what it cost me. The new district is yours. 💼'],
+  },
+  milestone:{
+    kmr:['SHOUTOUT to the hustler making MOVES in Palmetto City. The streets know. 📻','Somebody just hit a MILESTONE and the city\'s feeling it. This is DJ KRM. 📻'],
+    solana:['I heard what you did. The whole beach is talking. 😏','That was impressive, hot stuff. I\'m not easily impressed.'],
+  },
+  idleReturn:{
+    solana:['Where have you BEEN? The beach missed you. So did I. 🌴','Hot stuff, your tan is fading. This is unacceptable.'],
+    camille:['Darling, your empire doesn\'t run itself. Well — it does. But still.','I\'ve been waiting. The champagne is warm. That\'s your fault.'],
+    roxy:['Yo. The strip\'s been quiet without you. Everything still running?','I won three races while you were gone. THREE. Come catch up. 🏁'],
+    destiny:['Baby I wrote an ENTIRE ALBUM about you being gone. It\'s devastating. 🎤','Where WERE you? My manager said to stop calling. I didn\'t stop.'],
+    yara:['The swamp grew quiet. Kevin was worried. 🐊','You return. The fireflies told me an hour ago.'],
+    vivienne:['Your absence was noted. Your returns are always… adequate. 🛥️','The quarterly numbers are on your desk. They waited. You shouldn\'t have.'],
+  },
+  queenUnlock:{
+    solana:{msg:'So you\'re the one they\'re talking about. I like the car. I like the jacket more. 🏖️',right:1,opts:['Grab a drink?','Wanna see my tan lines?'],fx:'+10% income · 3 min'},
+    camille:{msg:'I don\'t usually introduce myself. Consider this… an exception, darling. 🥂',right:0,opts:['Champagne on me.','Let\'s skip to dessert.'],fx:'Heist takes +10% · 3 min'},
+    roxy:{msg:'Heard you can move. Let\'s see if you can keep UP. 🏁',right:0,opts:['I drive stick.','I eat asphalt for breakfast.'],fx:'+10% race pay · 5 min'},
+    yara:{msg:'The swamp sent me. Kevin vouched for you. That is… significant. 🐊',right:1,opts:['I\'m honored.','Who is Kevin?'],fx:'Heat decays faster · 5 min'},
+    destiny:{msg:'You\'re the one making all that noise. I LIKE noise. Let\'s make some together. 🎤',right:0,opts:['Front row at your show.','Let\'s make headlines.'],fx:'+10% income · 3 min'},
+    vivienne:{msg:'I don\'t text. My assistant does. But she\'s busy. So. Here I am. 🛥️',right:1,opts:['The pleasure\'s mine.','Your yacht or mine?'],fx:'+10% laundering · 3 min'},
+  },
+  nightOut:{
+    solana:{msg:'Last night was perfect. The sand, the stars, the… everything. 🌊',right:1,opts:['Round two?','I can\'t stop smiling.'],fx:'+10% income · 3 min'},
+    camille:{msg:'That restaurant doesn\'t take reservations. For anyone. For you, I made a call. 🥂',right:0,opts:['You\'re incredible.','How much do I owe you?'],fx:'Heist takes +10% · 3 min'},
+    roxy:{msg:'That highway? 140 the whole way. Your hand on the shift. My heart in my throat. 🔥',right:0,opts:['Do it again.','I drive better with you.'],fx:'+10% race pay · 5 min'},
+    yara:{msg:'The fireflies followed us home. Kevin says that\'s rare. 🐊✨',right:1,opts:['He\'s a good gator.','I\'d like to meet Kevin properly.'],fx:'Heat decays faster · 5 min'},
+    destiny:{msg:'I dedicated the encore to you. The crowd went WILD. You\'re welcome. 🎤',right:0,opts:['I\'m your biggest fan.','Dinner after the next show?'],fx:'+10% income · 3 min'},
+    vivienne:{msg:'The staff said they\'ve never seen the terrace booked on a Tuesday. I told them to adjust their expectations. 🛥️',right:1,opts:['You\'re something else.','I could get used to this.'],fx:'+10% laundering · 3 min'},
+  },
+};
+function msgFrom(from,event,extra){
+  const pool=MSG_POOLS[event]; if(!pool)return;
+  let msg,reply=null;
+  if(typeof pool[from]==='object'&&pool[from].msg){
+    msg=pool[from].msg;
+    reply={opts:pool[from].opts,right:pool[from].right,fx:pool[from].fx,chosen:null};
+  }else if(Array.isArray(pool[from])){
+    msg=pool[from][Math.floor(Math.random()*pool[from].length)];
+  }else return;
+  // only send from hired/unlocked characters (except system)
+  if(from!=='system'&&from!=='kmr'){
+    const isQueen=MSG_CHAR[from].pic.includes('queens');
+    if(isQueen&&!S.queens[from])return;
+    if(!isQueen&&!S.lieuts[from]&&from!=='kmr')return;
+  }
+  S.msgs.unshift({from,event,text:msg,reply,ts:now(),read:false});
+  if(S.msgs.length>20)S.msgs.length=20;
+  S.unreadMsgs=(S.unreadMsgs||0)+1;
+  updateBadges();
+  window.Radio&&Radio.sfx.blip(990);
+}
+function markMsgsRead(){
+  for(const m of S.msgs)m.read=true;
+  S.unreadMsgs=0;
+  updateBadges();
+}
+/* reply buff: temp multiplier tracked as S.msgBuff {until, type} */
+function applyMsgBuff(type,fx){
+  const dur=fx.includes('5 min')?300000:180000;
+  S.msgBuff={until:now()+dur,type};
+  toast('PULSE BONUS — '+fx.toUpperCase());
+  window.Radio&&Radio.sfx.fanfare();
+}
+
+/* ---- PULSE app ---- */
+function renderPulseApp(){
+  const unread=S.msgs.filter(m=>!m.read).length;
+  $id('pulse-sub').textContent=S.msgs.length+' MSGS'+(unread?' · '+unread+' NEW':'');
+  if(!S.msgs.length){
+    $id('pulse-body').innerHTML='<div class="msg-sys">No messages yet. Go make some noise. 📡</div>';
+    return;
+  }
+  let html='';
+  for(const m of S.msgs){
+    const c=MSG_CHAR[m.from]||MSG_CHAR.system;
+    const ago=Math.max(0,Math.round((now()-m.ts)/60000));
+    const timeStr=ago<1?'now':ago<60?ago+'m':Math.floor(ago/60)+'h';
+    html+=`<div class="msg-card ${m.read?'':'unread'}" data-ts="${m.ts}">
+      <div class="msg-ava">${c.em}${c.pic?`<img src="${c.pic}" alt="">`:''}</div>
+      <div class="msg-main">
+        <div class="msg-top"><span class="msg-name">${c.name}</span><span class="msg-time">${timeStr}</span></div>
+        <div class="msg-text">${m.text}</div>
+        ${m.reply&&m.reply.chosen===null?`
+          <div class="msg-reply-bar">
+            ${m.reply.opts.map((o,i)=>`<button class="msg-reply" data-ts="${m.ts}" data-i="${i}">${o}</button>`).join('')}
+          </div>`:''}
+        ${m.reply&&m.reply.chosen!==null?`
+          <div class="msg-buff">${m.reply.chosen===m.reply.right?'✦ '+m.reply.fx:'No chemistry.'}</div>`:''}
+      </div>
+    </div>`;
+  }
+  $id('pulse-body').innerHTML=html;
+  // wire replies
+  $id('pulse-body').querySelectorAll('.msg-reply').forEach(btn=>{
+    btn.onclick=()=>{
+      const ts=+btn.dataset.ts, idx=+btn.dataset.i;
+      const msg=S.msgs.find(m=>m.ts===ts);
+      if(!msg||!msg.reply||msg.reply.chosen!==null)return;
+      msg.reply.chosen=idx;
+      const right=idx===msg.reply.right;
+      if(right)applyMsgBuff(msg.from,msg.reply.fx);
+      else toast('WRONG VIBE');
+      renderPulseApp();
+    };
+  });
+}
+
 /* ---------------- VICE PHONE ---------------- */
 const SVGS={
   lock:'<svg class="ic" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
@@ -1347,6 +1523,7 @@ function showApp(name){
   else if(name==='vault')renderVaultApp();
   else if(name==='crew')renderCrewApp();
   else if(name==='legacy')renderLegacyApp();
+  else if(name==='pulse'){renderPulseApp();markMsgsRead();}
   else if(name==='settings')renderSettingsApp();
 }
 function openPhone(app){
@@ -1377,6 +1554,7 @@ setInterval(()=>{ // live clock + greet
 function updateBadges(){
   const set=(id,txt,cd)=>{ const b=$id('bdg-'+id); if(!b)return;
     if(txt==null){b.hidden=true;return;} b.hidden=false; b.textContent=txt; b.classList.toggle('cd',!!cd); };
+  set('pulse', S.unreadMsgs>0?S.unreadMsgs:null);
   set('queens', QUEENS.filter(q=>!S.queens[q.id]&&q.unlock(S)).length||null);
   const scd=S.acts.scd-now(), gcd=S.acts.gcd-now(), rcd=Math.max(scd,gcd);
   set('hustles', rcd>0?mmss(rcd/1000):null, true);
@@ -1384,7 +1562,7 @@ function updateBadges(){
   set('vault', cleared?cleared+'/12':null);
   set('crew', LIEUTS.filter(l=>!S.lieuts[l.id]&&l.unlock(S)).length||null);
   set('legacy', respectGain()>0?'+'+fmt(respectGain()):null);
-  $id('phone-ping').hidden=!(QUEENS.some(q=>!S.queens[q.id]&&q.unlock(S))||respectGain()>0);
+  $id('phone-ping').hidden=!(QUEENS.some(q=>!S.queens[q.id]&&q.unlock(S))||respectGain()>0||S.unreadMsgs>0);
 }
 
 /* ---- QUEENS app ---- */
@@ -1420,10 +1598,12 @@ function renderQueensApp(){
     if(S.inspiredUntil>now()||S.nightCd>now())return;
     if(!Object.keys(S.queens).length){toast('THE QUEENS DON\'T RUN WITH STRANGERS');return;}
     if(S.dirty<cost){toast('NOT ENOUGH DIRTY CASH');return;}
-    S.dirty-=cost; S.inspiredUntil=now()+60000; S.nightCd=now()+600000;
-    const q=QUEENS.filter(x=>S.queens[x.id]);
-    toast(NIGHT_LINES[q.length?Math.floor(Math.random()*q.length):0]);
-    window.Radio&&Radio.sfx.fanfare();
+       S.dirty-=cost; S.inspiredUntil=now()+60000; S.nightCd=now()+600000;
+       const q=QUEENS.filter(x=>S.queens[x.id]);
+       const picked=q[q.length?Math.floor(Math.random()*q.length):0];
+       toast(NIGHT_LINES[q.length?Math.floor(Math.random()*q.length):0]);
+       window.Radio&&Radio.sfx.fanfare();
+       if(picked)msgFrom(picked.id,'nightOut');
     renderQueensApp();
   };
 }
@@ -1695,7 +1875,10 @@ function offlineCheck(){
      <p class="led-line">CREWS BROUGHT IN: <span style="color:var(--pink)">${$$(inc)}</span> DIRTY</p>
      <p class="led-line">WASHED: <span class="gold">${$$(wash)}</span> CLEAN</p>
      <p style="margin-top:8px">Your lawyer answered the phone. The heat didn't move.</p>`,
-    [{label:'BACK TO WORK',cls:'btn-primary',fn:closeModal}]);
+    [{label:'BACK TO WORK',cls:'btn-primary',fn:()=>{closeModal();
+      const qpool=QUEENS.filter(q=>S.queens[q.id]);
+      if(qpool.length)msgFrom(qpool[Math.floor(Math.random()*qpool.length)].id,'idleReturn');
+    }}]);
 }
 
 /* ---------------- TICK ---------------- */
@@ -1706,7 +1889,8 @@ function sim(dt,t){
   if(conv>0){ S.dirty-=conv; S.clean+=conv; S.stats.clean+=conv; }
   const net=totalHeat()-decayRate();
   S.heat=clamp(S.heat+net*dt,0,100);
-  if(S.heat>=100&&!S.tf){ S.tf=true; toast('TASK FORCE! INCOME −25% UNTIL HEAT < 50'); }
+  if(S.heat>=100&&!S.tf){ S.tf=true; toast('TASK FORCE! INCOME −25% UNTIL HEAT < 50');
+    msgFrom(Math.random()<.5?'sal':'ghost','taskForce'); }
   if(S.tf&&S.heat<50){ S.tf=false; toast('THE TASK FORCE BACKED OFF'); }
   raidLogic(dt,t);
 }
