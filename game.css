@@ -309,6 +309,7 @@ body.phone-open #phone-scrim{opacity:1;pointer-events:auto}
 #phone{position:fixed;top:0;right:0;bottom:0;z-index:50;width:min(392px,96vw);
   transform:translateX(calc(100% + 30px));visibility:hidden;
   transition:transform .28s cubic-bezier(.2,.9,.25,1),visibility 0s .28s;padding:14px;display:flex}
+@media (min-width:1024px){ #phone{width:min(456px,40vw)} }
 body.phone-open #phone{transform:none;visibility:visible;transition:transform .28s cubic-bezier(.2,.9,.25,1)}
 .phone-body{position:relative;flex:1;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;
   background:linear-gradient(170deg,#2a1b46,#171028 30%,#120b20);
@@ -414,15 +415,20 @@ body.phone-open #phone{transform:none;visibility:visible;transition:transform .2
 .tape.locked .tname{color:#6e5f95}
 .tape .risk{position:absolute;top:8px;right:10px;color:var(--gold);font-size:12px;letter-spacing:2px}
 .tape.cleared{border-color:rgba(255,201,74,.5);box-shadow:0 0 14px rgba(255,201,74,.15)}
-/* crew */
-.c-row{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:12px;margin-bottom:9px;
-  background:linear-gradient(160deg,#241a3a,#191026);border:1px solid rgba(255,201,74,.35)}
-.c-art{position:relative;width:52px;height:52px;flex:none;border-radius:10px;overflow:hidden;border:2px solid rgba(255,201,74,.75)}
-.c-art img{width:100%;height:100%;object-fit:cover}
-.c-main{flex:1;min-width:0}
-.c-name{font-family:var(--disp);font-size:13px}
-.c-name span{font-family:var(--led);font-size:13px;color:var(--gold)}
-.c-fx{font-family:var(--led);font-size:13.5px;color:#c9b8e8}
+/* crew — roster wall (2-up cards, mirrors the Queens gallery) */
+.cw-card{position:relative;border-radius:14px;overflow:hidden;border:2px solid transparent;
+  background:linear-gradient(160deg,#221739,#160f2a) padding-box,
+             linear-gradient(160deg,#9fe8ff,#4a6f8a 30%,#e8f7ff 50%,#3a5a72 72%,#bfefff) border-box}
+.cw-card.mine{box-shadow:0 6px 18px rgba(0,0,0,.5),0 0 16px rgba(88,247,255,.2)}
+.cw-art{position:relative;aspect-ratio:1/1.02;background:#0d0718}
+.cw-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top}
+.cw-card.locked .cw-art img{filter:grayscale(1) brightness(.38) contrast(1.1)}
+.cw-hired{position:absolute;top:8px;left:8px;font-family:var(--led);font-size:12px;color:#1a0b2e;
+  background:linear-gradient(180deg,#ffd977,#e0a72e);border-radius:7px;padding:2px 7px}
+.cw-plate{padding:8px 10px 10px;background:linear-gradient(180deg,rgba(13,10,26,.4),rgba(10,7,20,.85));min-height:88px}
+.cw-name{font-family:var(--disp);font-size:12.5px}
+.cw-role{font-family:var(--led);font-size:12.5px;color:var(--gold);margin:2px 0 4px}
+.cw-fx{font-family:var(--led);font-size:13px;color:#c9b8e8;line-height:1.35}
 .chip{font-family:var(--led);font-size:12.5px;border-radius:8px;padding:3px 9px}
 .chip.hired{color:var(--teal);border:1px solid rgba(22,224,189,.5);background:rgba(22,224,189,.08)}
 .chip.lock{color:#9d8cc4;border:1px dashed rgba(157,140,196,.4)}

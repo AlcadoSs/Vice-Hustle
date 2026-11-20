@@ -287,12 +287,14 @@ function load(){
 
 /* ---------------- LIEUTENANT CHECK ---------------- */
 function checkLieuts(){
+  let hired=false;
   for(const l of LIEUTS){
     if(!S.lieuts[l.id]&&l.unlock(S)){
-      S.lieuts[l.id]=true;
+      S.lieuts[l.id]=true; hired=true;
       toast(l.name.toUpperCase()+' JOINED THE CREW — '+l.fx.toUpperCase());
     }
   }
+  if(hired&&$id('scr-crew').classList.contains('on'))renderCrewApp();
 }
 
 /* ---------------- RENDER ---------------- */
@@ -772,22 +774,26 @@ function doPrestige(){
 
 /* ---------------- THE QUEENS ---------------- */
 function checkQueens(){
+  let joined=false;
   for(const q of QUEENS){
     if(!S.queens[q.id]&&q.unlock(S)){
-      S.queens[q.id]=true;
+      S.queens[q.id]=true; joined=true;
       toast(q.name.toUpperCase()+' JOINED YOUR SIDE — '+q.fx.toUpperCase());
       window.Radio&&Radio.sfx.fanfare();
     }
   }
+  if(joined&&$id('scr-queens').classList.contains('on'))renderQueensApp();
 }
 function checkMilestones(){
+  let earned=false;
   for(const m of MILESTONES){
     if(!S.mile[m.id]&&m.test(S)){
-      S.mile[m.id]=true;
+      S.mile[m.id]=true; earned=true;
       toast('★ MILESTONE — '+m.name.toUpperCase());
       window.Radio&&Radio.sfx.blip(990);
     }
   }
+  if(earned&&$id('scr-legacy').classList.contains('on'))renderLegacyApp();
 }
 $id('btn-queens')&&0; // (menus now live in the Vice Phone)
 
@@ -1142,15 +1148,20 @@ function renderVaultApp(){
 function renderCrewApp(){
   const hired=LIEUTS.filter(l=>has(l.id)).length;
   $id('crew-sub').textContent=hired+' / '+LIEUTS.length+' HIRED';
-  let html='';
+  let html='<div class="q-grid">';
   for(const l of LIEUTS){
     const mine=has(l.id);
-    html+=`<div class="c-row" style="${mine?'':'opacity:.62'}">
-      <div class="c-art"><img src="${l.pic}" alt="" onerror="this.remove()"></div>
-      <div class="c-main"><div class="c-name">${l.name} <span>· ${l.role}</span></div><div class="c-fx">${l.em} ${l.fx}</div></div>
-      ${mine?'<span class="chip hired">HIRED</span>':`<span class="chip lock">${l.hint}</span>`}
+    html+=`<div class="cw-card ${mine?'mine':'locked'}">
+      <div class="cw-art"><img src="${l.pic}" alt="" onerror="this.remove()">
+        ${mine?'<span class="cw-hired">HIRED</span>':`<span class="q-lock">${SVGS.lock}</span>`}</div>
+      <div class="cw-plate">
+        <div class="cw-name">${mine?l.name:'???'}</div>
+        <div class="cw-role">${mine?l.role.toUpperCase():l.hint}</div>
+        ${mine?`<div class="cw-fx">${l.em} ${l.fx}</div>`:''}
+      </div>
     </div>`;
   }
+  html+='</div>';
   $id('crew-body').innerHTML=html;
 }
 
@@ -1299,7 +1310,10 @@ setInterval(()=>{
   const t=now(); let dt=(t-(tick.last||t))/1000; tick.last=t;
   dt=clamp(dt,0,5);
   if(started){
-    if(!isPaused()){ sim(dt,t); checkLieuts(); checkQueens(); checkMilestones(); }
+    if(!isPaused())sim(dt,t);
+    // state checks are pure + idempotent: they run even while the phone pauses the sim,
+    // so "joined the crew" moments don't wait for you to close the menu
+    checkLieuts(); checkQueens(); checkMilestones();
     updateCards(t); updateHUD(t); updateLedger(); updateHeistBtn(t); updateBadges();
   }
 },TICK_MS);
