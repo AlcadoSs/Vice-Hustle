@@ -564,163 +564,285 @@ function openHeistPick(){
 function startHeist(h){
   clearTimeout(drillTO);
   $id('heist-pick').hidden=true; $id('heist-play').hidden=false; $id('drill-result').hidden=true;
+  // intro card: district art + heist name + GO
+  const d=districtOf(h.d);
+  const poster=S.era===2&&d.img2?d.img2:d.img;
+  const base=Math.max(300,totalIncome()*90);
+  const take=base*RISK_MULT[h.risk]*(has('camille')?1.25:1);
   $id('heist-kicker').textContent=KIND_TXT[h.kind];
   $id('heist-name').textContent=h.name;
+  $id('heist-play').innerHTML=`
+    <div class="hs-intro"><img src="${poster}" alt="">
+      <div class="hs-line">
+        <div class="hs-kind">${KIND_TXT[h.kind]} · ${d.name}</div>
+        <div class="hs-name">${h.name} <span class="hs-risk">${'★'.repeat(h.risk)}</span></div>
+        <div class="hs-meta">PULL ${$$(take)} DIRTY · CASH UP TO ${$$(take)}</div>
+      </div>
+    </div>
+    <button class="btn-gold" id="hs-go" style="font-size:20px;padding:14px 48px;display:block;margin:6px auto 0">GO</button>`;
+  $id('hs-go').onclick=()=>beginHeistGame(h);
+}
+function beginHeistGame(h){
   const base={hits:0,miss:0,over:false,h,lastRAF:0};
   drill=base;
-  if(h.kind==='drill'){
-    Object.assign(base,{pos:.5,dir:1,speed:.9,zone:{c:.5,w:.30}});
-    $id('drill-track').hidden=false; $id('boost-board').hidden=true; $id('con-board').hidden=true;
-    drawZone();
-    $id('drill-stats').innerHTML='HITS <b class="teal">0</b> · MISSES <b>0</b>';
-    $id('heist-help').innerHTML='Click / SPACE when the marker is inside the pink zone.<br>8 strikes. 4 misses and you\'re busted.';
-  }else if(h.kind==='boost'){
-    Object.assign(base,{lane:'top',carX:10,dur:(15*(has('ray')?1.25:1))*1000,t0:performance.now(),speed:38,obs:[],nextSpawn:0});
-    $id('drill-track').hidden=true; $id('boost-board').hidden=false; $id('con-board').hidden=true;
-    $id('boost-car').style.top='25%';
-    $id('boost-board').querySelectorAll('.boost-ob').forEach(e=>e.remove());
-    $id('drill-stats').innerHTML='DODGES <b class="teal">0</b> · CRASHES <b>0</b>';
-    $id('heist-help').innerHTML='Click the TOP or BOTTOM half to switch lanes.<br>Pass the roadblocks. 3 crashes and you\'re busted.';
-  }else{ // con
-    Object.assign(base,{round:0,money:0,waiting:true});
-    $id('drill-track').hidden=true; $id('boost-board').hidden=true; $id('con-board').hidden=false;
-    $id('drill-stats').innerHTML='ROUNDS <b class="teal">0</b>/3';
-    $id('heist-help').innerHTML='Watch which case flashes the money, then pick it.<br>Three rounds. No pressure.';
-    conRound();
+  if(h.kind==='drill')startDial(h,base);
+  else if(h.kind==='boost')startChase(h,base);
+  else startCards(h,base);
+}
+
+/* ============ DRILL · VAULT DIAL ============ */
+function dialAngle(){
+  const m=getComputedStyle($id('dial-needle')).transform;
+  if(!m||m==='none')return 0;
+  const a=m.match(/matrix\(([-\d.e]+),\s*([-\d.e]+)/);
+  if(!a)return 0;
+  let deg=Math.atan2(parseFloat(a[2]),parseFloat(a[1]))*180/Math.PI;
+  if(deg<0)deg+=360;
+  return deg;
+}
+function wedgePath(cx,cy,r,deg,w){ // wedge centered at deg, width w°
+  const p=a=>{const t=(a-90)*Math.PI/180;return (cx+r*Math.cos(t)).toFixed(1)+' '+(cy+r*Math.sin(t)).toFixed(1);};
+  return `M ${cx} ${cy} L ${p(deg-w/2)} A ${r} ${r} 0 0 1 ${p(deg+w/2)} Z`;
+}
+function startDial(h,base){
+  const rounds=h.risk===1?5:h.risk===2?6:7;
+  const dur=(3.4-h.risk*.5).toFixed(2);
+  Object.assign(base,{rounds,wedge:Math.random()*360,ww:48,started:false});
+  $id('heist-play').innerHTML=`
+    <div id="dial-wrap">
+      <svg class="dial" viewBox="0 0 220 220">
+        <circle cx="110" cy="110" r="100" fill="#0d0718" stroke="#3a2b55" stroke-width="3"/>
+        ${Array.from({length:12},(_,i)=>{const a=(i*30-90)*Math.PI/180;
+          return `<line class="dticks" x1="${110+86*Math.cos(a)}" y1="${110+86*Math.sin(a)}" x2="${110+96*Math.cos(a)}" y2="${110+96*Math.sin(a)}"/>`;}).join('')}
+        <path id="dial-wedge" class="dwedge" d="${wedgePath(110,110,88,base.wedge,base.ww)}"/>
+        <circle id="dial-center" cx="110" cy="110" r="26"/>
+        <line id="dial-needle" x1="110" y1="110" x2="110" y2="30" stroke="#fff" stroke-width="4" stroke-linecap="round" style="animation-duration:${dur}s"/>
+        <circle cx="110" cy="110" r="6" fill="#ffd977"/>
+      </svg>
+    </div>
+    <div id="dial-stats">CLICKS <b class="teal">0</b>/${rounds} · MISSES <b class="red">0</b>/4</div>
+    <div id="ct-help">Tap / SPACE when the needle crosses the gold wedge.<br>Crack it in ${rounds} clicks. 4 slips and you're busted.</div>`;
+  const wrap=$id('dial-wrap');
+  // start on first tap (needle parked at 12)
+  const arm=()=>{
+    if(!base.over&&!wrap.classList.contains('running')){
+      wrap.classList.add('running');
+      window.Radio&&Radio.sfx.blip(660);
+    }else if(!base.over)dialStrike();
+  };
+  wrap.onpointerdown=arm;
+  drill.dialKey=e=>{if(e.code==='Space'){e.preventDefault();arm();}};
+  window.addEventListener('keydown',drill.dialKey);
+}
+function dialStrike(){
+  const d=drill, wrap=$id('dial-wrap');
+  let diff=Math.abs(dialAngle()-d.wedge); if(diff>180)diff=360-diff;
+  if(diff<=d.ww/2){
+    d.hits++;
+    d.wedge=Math.random()*360; d.ww=Math.max(30,d.ww-2.5);
+    $id('dial-wedge').setAttribute('d',wedgePath(110,110,88,d.wedge,d.ww));
+    wrap.classList.remove('hitflash'); void wrap.offsetWidth; wrap.classList.add('hitflash');
+    window.Radio&&Radio.sfx.blip(880+d.hits*40);
+  }else{
+    d.miss++;
+    wrap.classList.remove('missflash'); void wrap.offsetWidth; wrap.classList.add('missflash');
+    window.Radio&&Radio.sfx.bust();
   }
-  drill.lastRAF=performance.now(); drillRAF=requestAnimationFrame(heistFrame);
-}
-
-function drawZone(){
-  const z=drill.zone;
-  $id('drill-zone').style.left=((z.c-z.w/2)*100)+'%';
-  $id('drill-zone').style.width=(z.w*100)+'%';
-}
-
-function heistFrame(ts){
-  if(!drill)return;
-  const dt=Math.min(.05,(ts-drill.lastRAF)/1000); drill.lastRAF=ts;
-  const d=drill;
-  if(!d.over){
-    if(d.h.kind==='drill'){
-      d.pos+=d.dir*d.speed*dt;
-      if(d.pos>1){d.pos=2-d.pos;d.dir=-1;}
-      if(d.pos<0){d.pos=-d.pos;d.dir=1;}
-      $id('drill-marker').style.left=(d.pos*100)+'%';
-    }else if(d.h.kind==='boost'){
-      boostFrame(dt,ts);
-    }
+  $id('dial-stats').innerHTML=`CLICKS <b class="teal">${d.hits}</b>/${d.rounds} · MISSES <b class="red">${d.miss}</b>/4`;
+  if(d.miss>=4||d.hits>=d.rounds){
+    d.over=true; wrap.classList.remove('running');
+    window.removeEventListener('keydown',d.dialKey);
+    setTimeout(endHeist,350);
   }
-  drillRAF=requestAnimationFrame(heistFrame);
 }
 
-function boostFrame(dt,ts){
-  const d=drill, board=$id('boost-board');
-  // spawn obstacles
-  if(ts>d.nextSpawn){
-    d.nextSpawn=ts+900+Math.random()*500;
+/* ============ BOOST · GETAWAY CHASE ============ */
+let chaseTO=0;
+const BARRIER_SVG='<svg viewBox="0 0 40 26"><rect x="2" y="8" width="36" height="16" rx="2" fill="#1a0b2e" stroke="#ff2e55" stroke-width="2"/><path d="M6 8l7 16M14 8l7 16M22 8l7 16M30 8l7 16" stroke="#ffd977" stroke-width="3"/></svg>';
+function startChase(h,base){
+  const durMs=(15*(has('ray')?1.25:1))*1000;
+  Object.assign(base,{lane:'top',gap:170,dur:durMs,t0:Date.now(),obs:[],nextSpawn:0,scroll:0});
+  $id('heist-play').innerHTML=`
+    <div id="chase-stage">
+      <div class="road"><div class="ch-dashes" id="ch-dashes"></div></div>
+      <img id="ch-police" class="ch-car" alt="" style="top:56%;left:5%">
+      <img id="ch-you" class="ch-car" alt="" style="top:56%;left:30%">
+    </div>
+    <div id="chase-stats">CRASHES <b class="red">0</b>/3 · TAP TO WEAVE</div>
+    <div id="ct-help">Tap the TOP or BOTTOM half of the strip to switch lanes.<br>Survive ${Math.round(durMs/1000)}s. 3 crashes and they cuff you.</div>`;
+  keyedCar('art/cars/player.jpg',u=>{const el=$id('ch-you');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
+  keyedCar('art/cars/police.jpg',u=>{const el=$id('ch-police');if(el)el.src=u||CAR_SIDE('#1c1132','#58f7ff');});
+  const stage=$id('chase-stage');
+  stage.onpointerdown=e=>{
+    if(!drill||drill.over)return;
+    const r=stage.getBoundingClientRect();
+    drill.lane=(e.clientY-r.top)<r.height/2?'top':'bot';
+    setChaseLane();
+  };
+  drill.chaseKey=e=>{if(e.code==='Space'){e.preventDefault();drill.lane=drill.lane==='top'?'bot':'top';setChaseLane();}};
+  window.addEventListener('keydown',drill.chaseKey);
+  clearInterval(chaseTO);
+  chaseTO=setInterval(()=>chaseTick(),50);
+}
+function setChaseLane(){
+  const y=$id('ch-you'),p=$id('ch-police');
+  const top=drill.lane==='top';
+  if(y)y.style.top=top?'24%':'58%';
+  if(p)p.style.top=top===Math.random()<.5?'24%':'58%'; // police mirrors roughly
+}
+function chaseTick(){
+  const d=drill, stage=$id('chase-stage');
+  if(!d||d.over||!stage){clearInterval(chaseTO);return;}
+  const nowT=Date.now(), dt=.05;
+  d.scroll+=dt*60;
+  const dashes=$id('ch-dashes'); if(dashes)dashes.style.backgroundPosition=(-(d.scroll*3)%54)+'px 0';
+  // spawn
+  if(nowT>d.nextSpawn){
+    d.nextSpawn=nowT+(950-d.h.risk*120)+Math.random()*400;
     const lane=Math.random()<.5?'top':'bot';
     const el=document.createElement('div');
-    el.className='boost-ob'; el.textContent='🚧'; el.dataset.lane=lane;
-    board.appendChild(el);
-    d.obs.push({el,lane,x:100});
+    el.className='ch-ob'; el.innerHTML=BARRIER_SVG;
+    el.style.top=lane==='top'?'20%':'54%'; el.style.left='105%';
+    stage.appendChild(el);
+    d.obs.push({el,lane,x:105});
   }
-  // move obstacles
-  d.speed+=dt*2.2;
+  // move
+  const spd=(34+d.h.risk*8+((nowT-d.t0)/durMsBase(d))*14);
   for(const ob of d.obs){
-    ob.x-=d.speed*dt;
+    ob.x-=spd*dt;
     ob.el.style.left=ob.x+'%';
-    if(ob.lane===d.lane&&ob.x<d.carX+6&&ob.x>d.carX-7){        // crash
+    if(ob.lane===d.lane&&ob.x<31&&ob.x>27){          // crash at player x=30
       d.miss++; ob.el.remove(); ob.x=-99;
-      flashStats(); if(d.miss>=3){endHeist();return;}
-    }else if(ob.x<d.carX-7&&!ob.xpassed){ ob.xpassed=true; d.hits++; flashStats(); }
+      stage.classList.remove('crashflash'); void stage.offsetWidth; stage.classList.add('crashflash');
+      d.gap=Math.max(40,d.gap-30);
+      window.Radio&&Radio.sfx.bust();
+      $id('chase-stats').innerHTML=`CRASHES <b class="red">${d.miss}</b>/3 · TAP TO WEAVE`;
+      if(d.miss>=3){finishChase(d);return;}
+    }else if(ob.x<26&&!ob.passed){ob.passed=true;d.hits++;}
   }
-  d.obs=d.obs.filter(o=>o.x>10);
-  if(ts-d.t0>d.dur)endHeist();
+  d.obs=d.obs.filter(o=>o.x>-10&&o.x!==-99);
+  // police closes
+  d.gap=Math.max(14,d.gap-dt*5);
+  const pol=$id('ch-police');
+  if(pol)pol.style.left=(30-d.gap/10)+'%';
+  if(30-d.gap/10>=28){finishChase(d);return;}       // caught
+  if(nowT-d.t0>d.dur)finishChase(d);
 }
-function flashStats(){
-  const d=drill;
-  if(d.h.kind==='drill')$id('drill-stats').innerHTML=`HITS <b class="teal">${d.hits}</b> · MISSES <b>${d.miss}</b>`;
-  else if(d.h.kind==='boost')$id('drill-stats').innerHTML=`DODGES <b class="teal">${d.hits}</b> · CRASHES <b>${d.miss}</b>`;
+function durMsBase(d){return d.dur;}
+function finishChase(d){
+  d.over=true; clearInterval(chaseTO);
+  window.removeEventListener('keydown',d.chaseKey);
+  setTimeout(endHeist,350);
 }
 
-function conRound(){
-  const d=drill, board=$id('con-board');
-  board.innerHTML='';
-  d.money=Math.floor(Math.random()*4); d.waiting=true;
+/* ============ CON · CARD TABLE ============ */
+const CARD_BACK_SVG='<svg class="ic" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 7l1.2 2.8L16 11l-2.8 1.2L12 15l-1.2-2.8L8 11l2.8-1.2z"/></svg>';
+const CARD_GOLD_SVG='<svg viewBox="0 0 24 24"><path d="M12 3l2.4 5.4L20 9l-4 4 1 5.8L12 16l-5 2.8L8 13 4 9l5.6-.6z" fill="#FFC94A" stroke="#fff3cf" stroke-width="1"/></svg>';
+function startCards(h,base){
+  Object.assign(base,{round:0,money:0,phase:'wait',order:[0,1,2,3]});
+  $id('heist-play').innerHTML=`
+    <div id="ct-table"></div>
+    <div id="ct-stats">ROUNDS <b class="teal">0</b>/3</div>
+    <div id="ct-help">Watch the gold card. Track the shuffle. Pick it.</div>`;
+  ctRound();
+}
+function ctRound(){
+  const d=drill, tbl=$id('ct-table');
+  tbl.innerHTML='';
+  d.money=Math.floor(Math.random()*4); d.phase='reveal';
+  d.order=[0,1,2,3];
   for(let i=0;i<4;i++){
     const c=document.createElement('div');
-    c.className='con-case'; c.textContent='💼'; c.dataset.i=i;
-    board.appendChild(c);
+    c.className='ct-card'; c.dataset.slot=i;
+    c.innerHTML=`<div class="back">${CARD_BACK_SVG}</div><div class="face">${i===d.money?CARD_GOLD_SVG:CARD_BACK_SVG}</div>`;
+    c.style.position='relative';
+    tbl.appendChild(c);
   }
-  const cases=board.querySelectorAll('.con-case');
+  const cards=[...tbl.children];
+  // flash the gold card
   drillTO=setTimeout(()=>{
-    cases[d.money].classList.add('flash'); cases[d.money].textContent='💰';
+    cards[d.money].classList.add('up');
+    window.Radio&&Radio.sfx.blip(760);
     drillTO=setTimeout(()=>{
-      cases.forEach(c=>{c.classList.remove('flash');c.textContent='💼';});
-      d.waiting=false;
-    },900);
-  },500+Math.random()*400);
+      cards.forEach(c=>c.classList.remove('up'));
+      // shuffle: 3 swaps with visual motion
+      d.phase='shuffle';
+      const slots=[0,1,2,3];
+      let swaps=0;
+      const doSwap=()=>{
+        if(!drill||drill.over)return;
+        const a=Math.floor(Math.random()*4), b=Math.floor(Math.random()*4);
+        if(a===b){doSwap();return;}
+        // animate: swap translateX
+        const ca=cards[slots[a]], cb=cards[slots[b]];
+        const w=ca.offsetWidth+12;
+        const dirA=slots[a]<slots[b]?1:-1;
+        ca.style.transform=`translateX(${dirA*w*(slots[b]-slots[a])}px)`;
+        cb.style.transform=`translateX(${-dirA*w*(slots[b]-slots[a])}px)`;
+        window.Radio&&Radio.sfx.tick();
+        [slots[a],slots[b]]=[slots[b],slots[a]];
+        drillTO=setTimeout(()=>{
+          ca.style.transform=''; cb.style.transform='';
+          // reorder DOM to match slots
+          tbl.innerHTML=''; slots.forEach(s=>tbl.appendChild(cards[s]));
+          if(++swaps<(2+Math.floor(Math.random()*2)))drillTO=setTimeout(doSwap,120);
+          else{ d.phase='pick'; d.money=slots.indexOf(d.money); $id('ct-help').textContent='Where did it go? PICK.'; }
+        },320);
+      };
+      drillTO=setTimeout(doSwap,450);
+    },1000);
+  },600+Math.random()*400);
 }
-function conPick(i){
-  const d=drill; if(d.waiting||d.over)return;
-  const cases=$id('con-board').querySelectorAll('.con-case');
-  const right=i===d.money;
-  cases[i].classList.add('picked',right?'good':'bad');
-  cases[d.money].textContent='💰';
-  if(right)d.hits++;
+$id('heist-play').addEventListener('click',e=>{
+  const c=e.target.closest('.ct-card');
+  if(!c||!drill||drill.over||drill.phase!=='pick')return;
+  drill.phase='wait';
+  const d=drill, tbl=$id('ct-table');
+  const picked=+[...tbl.children].indexOf(c);
+  const right=picked===d.money;
+  c.classList.add(right?'right':'wrong','up');
+  tbl.children[d.money].classList.add('up');
+  if(right){d.hits++;window.Radio&&Radio.sfx.chaChing();}
   d.round++;
-  $id('drill-stats').innerHTML=`ROUNDS <b class="teal">${d.round}</b>/3 · RIGHT <b>${d.hits}</b>`;
-  d.waiting=true;
-  drillTO=setTimeout(()=>{ if(d.round>=3)endHeist(); else conRound(); },900);
-}
+  $id('ct-stats').innerHTML=`ROUNDS <b class="teal">${d.round}</b>/3 · RIGHT <b>${d.hits}</b>`;
+  drillTO=setTimeout(()=>{ if(d.round>=3){d.over=true;setTimeout(endHeist,400);} else ctRound(); },1000);
+});
 
 function strike(){
   if(!drill||drill.over)return;
   const d=drill;
-  if(d.h.kind==='drill'){
-    if(Math.abs(d.pos-d.zone.c)<=d.zone.w/2){
-      d.hits++; d.speed+=.07;
-      d.zone={c:.15+Math.random()*.7,w:Math.max(.12,.30-.022*d.hits)};
-      drawZone();
-    }else d.miss++;
-    flashStats();
-    if(d.miss>=4||d.hits+d.miss>=8)endHeist();
-  }else if(d.h.kind==='boost'){
-    // boost: clicks switch lanes (handled by board click); space also flips
-    d.lane=d.lane==='top'?'bot':'top';
-    $id('boost-car').style.top=d.lane==='top'?'25%':'75%';
-  }
+  if(d.h.kind==='drill')dialStrike();
+  else if(d.h.kind==='boost'){ d.lane=d.lane==='top'?'bot':'top'; setChaseLane(); }
 }
-$id('boost-board').addEventListener('click',e=>{
-  if(!drill||drill.over||drill.h.kind!=='boost')return;
-  const rect=e.currentTarget.getBoundingClientRect();
-  const lane=(e.clientY-rect.top)<rect.height/2?'top':'bot';
-  drill.lane=lane;
-  $id('boost-car').style.top=lane==='top'?'25%':'75%';
-});
-$id('con-board').addEventListener('click',e=>{
-  const c=e.target.closest('.con-case'); if(!c)return;
-  conPick(+c.dataset.i);
+$id('heist-modal').addEventListener('click',e=>{
+  if(e.target.closest('#drill-close'))return;
+  if(e.target.closest('#dial-wrap')||e.target.closest('#chase-stage')||e.target.closest('.ct-card'))return;
+  if(drill&&!drill.over&&drill.h.kind==='drill')dialStrike();
 });
 
 function endHeist(){
-  const d=drill; d.over=true; clearTimeout(drillTO);
+  const d=drill; d.over=true; clearTimeout(drillTO); clearInterval(chaseTO);
+  if(d.dialKey)window.removeEventListener('keydown',d.dialKey);
+  if(d.chaseKey)window.removeEventListener('keydown',d.chaseKey);
   const busted = d.h.kind==='drill'?d.miss>=4 : d.h.kind==='boost'?d.miss>=3 : false;
   let perf;
-  if(d.h.kind==='drill')perf=d.hits>=7?1:d.hits>=5?.7:d.hits>=3?.45:.2;
-  else if(d.h.kind==='boost')perf=d.hits>=10?1:d.hits>=6?.6:.3;
+  if(d.h.kind==='drill'){const ratio=d.hits/(d.rounds||5);perf=ratio>=1?1:ratio>=.6?.7:ratio>=.4?.45:.2;}
+  else if(d.h.kind==='boost')perf=d.miss===0?1:d.miss===1?.6:.3;
   else perf=d.hits>=3?1:d.hits===2?.6:d.hits===1?.35:0;
   const base=Math.max(300,totalIncome()*90);
   const pay=busted?0:base*RISK_MULT[d.h.risk]*perf*(has('camille')?1.25:1);
+  // theater: gold or red wash
+  const wash=document.createElement('div');
+  wash.className=busted?'redwash':'goldwash';
+  $id('heist-modal').querySelector('.heist-box').appendChild(wash);
   let msg;
   if(busted){
     S.heat=clamp(S.heat+25,0,100);
     msg=`<span style="color:#ff5d7a">BUSTED — the alarm won.</span><br>+25 HEAT · no payday.`;
   }else{
-    S.dirty+=pay; S.stats.dirty+=pay;
+    S.dirty+=pay; S.stats.dirty+=pay; payToast(pay);
     msg=`TAKE: <span class="gold">${$$(pay)}</span> DIRTY`;
-    const strong=d.h.kind==='con'?d.hits>=3:d.h.kind==='boost'?d.hits>=8:d.hits>=5;
+    const strong=d.h.kind==='con'?d.hits>=3:d.h.kind==='boost'?d.miss===0:d.hits>=d.rounds;
     if(strong){S.frenzy=now()+(has('destiny')?120000:60000);msg+=`<br><span class="teal">FRENZY ×2 — ${has('destiny')?'120':'60'}s!</span>`;}
     if(perf>=1)msg+='<br><span class="teal">CLEAN GETAWAY.</span>';
     if(d.h.kind==='con'&&d.hits===0){S.heat=clamp(S.heat+10,0,100);msg+='<br>+10 HEAT · they saw your face.';}
@@ -728,8 +850,7 @@ function endHeist(){
   S.stats.heists++;
   let firstClear=false;
   if(!busted&&!S.vault[d.h.id]){ S.vault[d.h.id]=true; firstClear=true; }
-  $id('drill-track').hidden=true; $id('boost-board').hidden=true; $id('con-board').hidden=true; $id('drill-stats').hidden=true;
-  $id('heist-help').hidden=true;
+  $id('heist-play').innerHTML='';
   const res=$id('drill-result'); res.hidden=false;
   res.innerHTML=`${msg}${firstClear?'<br><span class="gold">✦ SCORE CLEARED — CINEMATIC IN THE VAULT</span>':''}<br><button class="btn btn-primary" id="drill-close" style="margin-top:12px">CASH OUT</button>`;
   res.querySelector('#drill-close').onclick=closeHeist;

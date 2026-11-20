@@ -649,6 +649,70 @@ body.phone-open #phone{transform:none;visibility:visible;transition:transform .2
 .mile-t.on{border-color:rgba(255,201,74,.5);color:var(--gold)}
 .mile-t.on svg{color:var(--gold)}
 
+/* ---------- HEIST v2 · INTRO CARD ---------- */
+.hs-intro{position:relative;border-radius:14px;overflow:hidden;border:1px solid rgba(255,46,136,.5);margin-bottom:12px}
+.hs-intro img{width:100%;aspect-ratio:21/9;object-fit:cover;display:block}
+.hs-intro .hs-line{position:absolute;bottom:0;left:0;right:0;padding:10px 14px;
+  background:linear-gradient(180deg,transparent,rgba(10,6,20,.94))}
+.hs-intro .hs-kind{font-family:var(--led);font-size:13px;color:var(--teal);letter-spacing:.3em}
+.hs-intro .hs-name{font-family:var(--disp);font-size:20px;text-shadow:0 0 12px rgba(255,46,136,.6)}
+.hs-intro .hs-meta{font-family:var(--led);font-size:14px;color:#ffd9ec;margin-top:2px}
+.hs-intro .hs-risk{color:var(--gold);letter-spacing:2px}
+
+/* ---------- HEIST v2 · VAULT DIAL ---------- */
+#dial-wrap{position:relative;width:220px;height:220px;margin:8px auto}
+#dial-wrap svg.dial{width:220px;height:220px}
+#dial-needle{transform-box:view-box;transform-origin:110px 110px;
+  animation:dialspin 3s linear infinite;animation-play-state:paused}
+@keyframes dialspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+#dial-wrap.running #dial-needle{animation-play-state:running}
+#dial-wrap .dwedge{fill:rgba(255,201,74,.28);stroke:var(--gold);stroke-width:2}
+#dial-wrap .dticks{stroke:#3a2b55;stroke-width:2}
+#dial-wrap.hitflash .dwedge{fill:rgba(22,224,189,.5)}
+#dial-wrap.missflash svg.dial{animation:dialshake .3s}
+@keyframes dialshake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+#dial-center{fill:#1a0b2e;stroke:var(--gold);stroke-width:2}
+#dial-stats{font-family:var(--led);font-size:20px;text-align:center;margin:6px 0}
+#dial-stats b.teal{color:var(--teal)} #dial-stats b.red{color:#ff5d7a}
+
+/* ---------- HEIST v2 · GETAWAY CHASE ---------- */
+#chase-stage{position:relative;height:150px;border-radius:12px;overflow:hidden;margin:8px auto;max-width:470px;
+  border:1px solid rgba(88,247,255,.4);cursor:pointer;
+  background:linear-gradient(180deg,#1c1140 0 36%,#241739 36% 42%,#191331 42% 100%)}
+#chase-stage .road{position:absolute;left:0;right:0;bottom:0;height:46%;background:linear-gradient(180deg,#231b3f,#14101c)}
+#chase-stage .ch-dashes{position:absolute;left:0;right:0;top:49%;height:3px;
+  background:repeating-linear-gradient(90deg,#ffd977 0 26px,transparent 26px 54px);opacity:.7}
+.ch-car{position:absolute;height:34px;transform:translateX(-50%);z-index:3}
+#ch-you{transition:top .12s}
+.ch-ob{position:absolute;height:26px;z-index:2}
+.ch-ob svg{height:100%}
+#chase-stage.crashflash{animation:crashred .35s}
+@keyframes crashred{50%{box-shadow:0 0 30px #ff2e55 inset}}
+#chase-stats{font-family:var(--led);font-size:18px;text-align:center;margin:4px 0}
+#chase-stats b.red{color:#ff5d7a} #chase-stats b.teal{color:var(--teal)}
+
+/* ---------- HEIST v2 · CARD TABLE ---------- */
+#ct-table{display:flex;gap:12px;justify-content:center;margin:12px 0}
+.ct-card{position:relative;width:74px;height:104px;border-radius:10px;cursor:pointer;
+  transition:transform .3s cubic-bezier(.3,.8,.3,1);transform-style:preserve-3d}
+.ct-card .face,.ct-card .back{position:absolute;inset:0;border-radius:10px;backface-visibility:hidden;
+  display:flex;align-items:center;justify-content:center}
+.ct-card .back{background:linear-gradient(160deg,#2a1f47,#160f2a);border:2px solid rgba(255,46,136,.5)}
+.ct-card .back svg{width:40px;height:40px;color:rgba(255,46,136,.6)}
+.ct-card .face{background:linear-gradient(160deg,#3a2a08,#241a06);border:2px solid var(--gold);transform:rotateY(180deg)}
+.ct-card .face svg{width:44px;height:44px}
+.ct-card.up{transform:rotateY(180deg)}
+.ct-card.dim{opacity:.4}
+.ct-card.right{box-shadow:0 0 16px rgba(255,201,74,.8)}
+.ct-card.wrong{box-shadow:0 0 16px rgba(255,46,80,.8)}
+#ct-stats{font-family:var(--led);font-size:18px;text-align:center;margin:4px 0}
+#ct-help{font-size:13px;color:#9d8cc4;text-align:center}
+
+/* heist end theater */
+#heist-modal .goldwash{position:absolute;inset:0;background:rgba(255,201,74,.25);animation:goldout .8s forwards;pointer-events:none;z-index:9}
+#heist-modal .redwash{position:absolute;inset:0;background:rgba(255,46,80,.25);animation:goldout .8s forwards;pointer-events:none;z-index:9}
+@keyframes goldout{to{opacity:0}}
+
 /* ---------- responsive ---------- */
 @media (max-width:760px){
   #hud-left{min-width:0}
