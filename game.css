@@ -704,9 +704,11 @@ body.phone-open #phone{transform:none;visibility:visible;transition:transform .2
   [data-tip]:hover::after{opacity:1}
   /* right-column grid tiles flip alignment so the bubble stays inside the phone screen */
   .l-grid>[data-tip]:nth-child(even)::after,.mile-grid>[data-tip]:nth-child(even)::after{left:auto;right:0}
-  /* the TODAY strip sits at the top of the phone — its bubbles drop below instead */
+  /* the TODAY strip sits at the top of the phone — its bubbles drop below instead;
+     the LAST row flips back up so it never clips past the phone screen edge */
   #today-strip [data-tip]{cursor:help}
   #today-strip [data-tip]::after{bottom:auto;top:calc(100% + 9px)}
+  #today-strip .td-row.last::after{top:auto;bottom:calc(100% + 9px)}
 }
 
 /* ---------- HEIST v2 · INTRO CARD ---------- */

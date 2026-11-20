@@ -429,12 +429,13 @@ function renderTodayStrip(){
   const host=$id('today-strip'); if(!host||!S.daily){ if(host)host.innerHTML=''; return; }
   const done=S.daily.tasks.filter(t=>t.done).length;
   let html=`<div class="td-head"><span>TODAY</span><span>${done}/3</span></div>`;
-  for(const t of S.daily.tasks){
+  for(let ti=0;ti<S.daily.tasks.length;ti++){
+    const t=S.daily.tasks[ti];
     const def=DAILY_POOL.find(p=>p.id===t.id); if(!def)continue;
     const cur=def.money?$$(t.prog):t.prog, goal=def.money?$$(t.goal):t.goal;
     const how=def.money?('launder '+$$(t.goal)+' clean money'):def.d;
     const tip=`${def.name} — HOW TO: ${how}. REWARD: +${DAILY_RP} RP${t.done?' · ALREADY EARNED TODAY':''}`;
-    html+=`<div class="td-row${t.done?' done':''}" data-tip="${tip}">
+    html+=`<div class="td-row${t.done?' done':''}${ti===S.daily.tasks.length-1?' last':''}" data-tip="${tip}">
       <span class="td-name">${def.name}</span>
       <span class="td-bar"><i style="width:${Math.min(100,t.goal?100*t.prog/t.goal:100)}%"></i></span>
       <span class="td-prog">${t.done?'DONE':cur+' / '+goal}</span>
@@ -1552,60 +1553,84 @@ function pickPhoto(from){
 }
 const MSG_POOLS={
   heistWin:{
-    solana:['That take was HOT, hot stuff. The beach is calling — bring champagne. 🏖️','You cracked it open like a coconut. I love that about you.','Big money, bigger smile. I saw the lights from the shore. ✨'],
-    camille:['Darling, that was exquisite. The cage, the drill, the exit — pure theatre. 🥂','I had the champagne ready before you called. I know your timing.','Another flawless performance. My suite, midnight.'],
-    roxy:['THAT was a RUN. My heart\'s still doing 140. 💨','Clean take, baby. The getaway was better than the money.','You drive that drill like I drive the strip. Respect.'],
-    yara:['The swamp knew before you did. The gators were quiet tonight. 🐊','Good harvest. Kevin says hello. Don\'t ask who Kevin is.','The water told me you\'d win. The water is rarely wrong.'],
-    destiny:['Baby that was EVERYTHING. I\'m writing a song about it. 🎙️','I told my stylist about your score. She fainted.','The lights, the money, the DRAMA. You get me.'],
-    vivienne:['Acceptable. The yacht is fuelled for the weekend. Don\'t be late. 🛥️','I had the papers drawn before you finished. Efficiency is attractive.','Well. That\'ll cover the champagne budget. Barely.'],
-    ray:['Clean. 🚬','Heard you pulled it. Not bad.','That\'s how it\'s done.'],
-    kmr:['Someone just pulled a SCORE in Palmetto City — you know who you are. The city\'s TALKING. 📻','That last job? FIRE. This is DJ KRM and I approve. 📻'],
+    solana:['That take was HOT, hot stuff. The beach is calling — bring champagne. 🏖️','You cracked it open like a coconut. I love that about you.','Big money, bigger smile. I saw the lights from the shore. ✨','Sunrise money is the best money. Let\'s spend it somewhere with sand. 🌅','I kissed the ocean for luck before you left. Clearly it worked. 😘'],
+    camille:['Darling, that was exquisite. The cage, the drill, the exit — pure theatre. 🥂','I had the champagne ready before you called. I know your timing.','Another flawless performance. My suite, midnight.','The penthouse is toasting you as we speak. Wear the good suit tonight.','A performance worthy of a bow. I applauded. Alone. That\'s rare.'],
+    roxy:['THAT was a RUN. My heart\'s still doing 140. 💨','Clean take, baby. The getaway was better than the money.','You drive that drill like I drive the strip. Respect.','Bet the pit crew\'s still picking their jaws off the floor. 🔧','Money\'s fine. I\'m here for the getaway stories. Tell me EVERYTHING.'],
+    yara:['The swamp knew before you did. The gators were quiet tonight. 🐊','Good harvest. Kevin says hello. Don\'t ask who Kevin is.','The water told me you\'d win. The water is rarely wrong.','The herons circled twice tonight. Twice is prosperity. ✨','Bring the take past the glades. The moss keeps secrets.'],
+    destiny:['Baby that was EVERYTHING. I\'m writing a song about it. 🎙️','I told my stylist about your score. She fainted.','The lights, the money, the DRAMA. You get me.','Encore, baby. ENCORE. 🎤','My heart, my agent, and my accountant all said yes to you tonight.'],
+    vivienne:['Acceptable. The yacht is fuelled for the weekend. Don\'t be late. 🛥️','I had the papers drawn before you finished. Efficiency is attractive.','Well. That\'ll cover the champagne budget. Barely.','The portfolio approves. So do I, marginally. 🛥️','Numbers up. Pulse unchanged. Perfect.'],
+    ray:['Clean. 🚬','Heard you pulled it. Not bad.','That\'s how it\'s done.','Heard the scanner melted. Beautiful.','In and out like the tide. The only way.'],
+    sal:['I logged it as "consulting fees." Nobody reads the footnotes. 💼','Fifteen phone calls. FIFTEEN. Worth it for that take.'],
+    ghost:['The city blinks. You were the eyelid.','Good work leaves no signature. Yours is improving.'],
+    kmr:['Someone just pulled a SCORE in Palmetro City — you know who you are. The city\'s TALKING. 📻','That last job? FIRE. This is DJ KRM and I approve. 📻','ANOTHER one for the books — Palmetro\'s finest are BESIDE themselves. 📻','Big score energy on the airwaves tonight. Stay shiny, you beautiful crook. 📻'],
   },
   heistBust:{
-    solana:['Oh no. Are you okay, hot stuff? Come to the beach, the salt air fixes everything. 🌊','Babe. Breathe. The sun still rose. It always does.'],
-    camille:['Darling. I\'ve already called my lawyer. Don\'t say a word to anyone.','That was… unfortunate. We\'ll discuss it over dinner. Dress better.'],
-    roxy:['Oof. That was a wreck, not a crash. Walk it off and get back in. 🔧','Hey — even I blow a gasket sometimes. You\'ll get the next one.'],
-    yara:['The swamp says: patience. Even the gator waits. 🐊','Failure is just the water settling. Try again when the mist clears.'],
-    destiny:['OH NO baby. I can\'t LOOK. Call me when it\'s fixed. 🎤','That was a DISASTER and I\'m writing a ballad about it. A sad one.'],
-    vivienne:['We need to talk. My office. Now. 🛥️','I\'ve already recovered the losses. You\'re welcome. Don\'t let it happen again.'],
-    sal:['I may have handled it. Don\'t ask how. Don\'t ask how much. 💼','Okay so the good news is you\'re not in a cell. The bad news is everything else.'],
-    ghost:['I was never there. You were never here. Continue.'],
+    solana:['Oh no. Are you okay, hot stuff? Come to the beach, the salt air fixes everything. 🌊','Babe. Breathe. The sun still rose. It always does.','Come here. Sit. The waves will talk and we won\'t.','Every king wipeouts sometimes. The ocean says so.'],
+    camille:['Darling. I\'ve already called my lawyer. Don\'t say a word to anyone.','That was… unfortunate. We\'ll discuss it over dinner. Dress better.','Damage control is underway. Wear something inconspicuous. For you: beige.','We don\'t say "bust" in this house. We say "intermission."'],
+    roxy:['Oof. That was a wreck, not a crash. Walk it off and get back in. 🔧','Hey — even I blow a gasket sometimes. You\'ll get the next one.','So the engine blew. You rebuild, you rerun, you win. That\'s racing.','Send me the wreck report. I want every gruesome detail.'],
+    yara:['The swamp says: patience. Even the gator waits. 🐊','Failure is just the water settling. Try again when the mist clears.','The mist has swallowed worse than this. It swallows everything, given time. 🌫️','Kevin ate your bad luck. He enjoys it. Don\'t thank him.'],
+    destiny:['OH NO baby. I can\'t LOOK. Call me when it\'s fixed. 🎤','That was a DISASTER and I\'m writing a ballad about it. A sad one.','We are NOT doing sad ballads today. Today is a POWER BALLAD. Different.','Fix it, baby. Then call and describe your heroics. Slowly.'],
+    vivienne:['We need to talk. My office. Now. 🛥️','I\'ve already recovered the losses. You\'re welcome. Don\'t let it happen again.','Losses are tuition. You\'re enrolled.','I\'ve restructured worse. Barely.'],
+    ray:['Wrecks happen. Keep the title, lose the car.','Shake it off. The strip\'s still there tomorrow.'],
+    sal:['I may have handled it. Don\'t ask how. Don\'t ask how much. 💼','Okay so the good news is you\'re not in a cell. The bad news is everything else.','NEW plan. There\'s always a new plan. There HAS to be.','I burned a favor back there. A big one. We\'ll discuss the invoice later.'],
+    ghost:['I was never there. You were never here. Continue.','Ashes make good soil. Plant again.','They celebrated tonight. Remember their faces.'],
+    kmr:['Rough night in Palmetro City — even legends eat asphalt sometimes. Dust off. 📻'],
   },
   raidSurvived:{
-    sal:['The scanners lit up, I made three calls, it\'s handled. You owe me. 💼','That was close. I aged a decade. My heart can\'t do this.'],
-    ghost:['They found nothing. They always find nothing.','Stay dark for forty-eight hours.'],
-    solana:['Those sirens scared me! Are you okay? Come lay in the sun. 🌴','Babe the cops were EVERYWHERE. I was watching from the lifeguard tower.'],
-    camille:['I saw the lights from the penthouse. Exhilarating. Are you hurt, darling?'],
+    sal:['The scanners lit up, I made three calls, it\'s handled. You owe me. 💼','That was close. I aged a decade. My heart can\'t do this.','They took SOME of it. Could\'ve been ALL of it. Silver linings! Right?!'],
+    ghost:['They found nothing. They always find nothing.','Stay dark for forty-eight hours.','Raids are weather. You are the climate.'],
+    solana:['Those sirens scared me! Are you okay? Come lay in the sun. 🌴','Babe the cops were EVERYWHERE. I was watching from the lifeguard tower.','I hid your favorite shirt under the lifeguard tower. Just in case.','Sirens can\'t reach the reef. Remember that.'],
+    camille:['I saw the lights from the penthouse. Exhilarating. Are you hurt, darling?','The penthouse has one entrance and forty exits. Architecture is destiny. 🥂','I nodded at the detectives from the balcony. Manners unsettle them.'],
+    roxy:['You OUT-RAN the law? Okay, now I\'m turned on. 🚓💨','Sirens are just applause with consequences.'],
+    yara:['The reeds bent away from the flashing lights. The swamp protects its own. 🌿','They searched the water. The water declined to answer.'],
+    destiny:['I\'ve survived worse reviews, baby. Borrow my courage. 🎤','Raid, schmaid. The show goes on.'],
+    vivienne:['I had the insurers on line one before the dust settled. 🛥️','Confiscation is a word for amateurs.'],
+    ray:['Lost the tail in three blocks. You owe me gas money.'],
+    kmr:['Sirens over the strip tonight — and somehow the strip is STILL standing. Respect. 📻'],
   },
   taskForce:{
-    sal:['LAY LOW. I\'m serious. Task Force means Task Force. Turn everything off. 💼','This is bad. This is very bad. I\'m making calls. STAY INSIDE.'],
-    ghost:['The city has teeth tonight. Disappear.','They know your face. Change it.'],
+    sal:['LAY LOW. I\'m serious. Task Force means Task Force. Turn everything off. 💼','This is bad. This is very bad. I\'m making calls. STAY INSIDE.','Three judges on retainer and NONE of them are answering. That\'s bad. SO bad.','Whatever you do, do it QUIETLY. Or… maybe not at all?'],
+    ghost:['The city has teeth tonight. Disappear.','They know your face. Change it.','Hunters want movement. Be furniture.'],
+    vivienne:['My lawyers smell billable hours. Count yours. 🛥️'],
+    kmr:['Task Force in the streets, people — if you\'re dirty, tonight you\'re INVISIBLE. 📻','Palmetro\'s finest brought the big dogs. Walk slow, smile less. 📻'],
   },
   event_crackdown:{
-    kmr:['Word from the scanner: EVERYTHING is heat right now. Cool it or lose it. DJ KRM, watching the watchmen. 📻','Blue lights on every corner, city-wide. If it\'s dirty, it\'s a target tonight. 📻'],
+    kmr:['Word from the scanner: EVERYTHING is heat right now. Cool it or lose it. DJ KRM, watching the watchmen. 📻','Blue lights on every corner, city-wide. If it\'s dirty, it\'s a target tonight. 📻','Sweep\'s on and the sweep\'s WIDE — even the pigeons are lawyering up tonight. 📻','Scanner says crackdown. History says outlast. Cool heads, hot cash. 📻'],
   },
   event_tourist:{
-    kmr:['The snowbirds landed and the wallets are OPEN. Everything sells in tourist season, baby. 📻','Beach is wall-to-wall and cash is falling out of fanny packs. Run it up. 📻'],
+    kmr:['The snowbirds landed and the wallets are OPEN. Everything sells in tourist season, baby. 📻','Beach is wall-to-wall and cash is falling out of fanny packs. Run it up. 📻','Fanny packs UP, prices UP, patience DOWN — it\'s TOURIST SEASON! 📻','The snowbirds are tipping in traveler\'s checks. Cash \'em fast. 📻'],
   },
   event_payday:{
-    kmr:['First of the month energy — the whole city just got paid and your wash runs HOT. 📻','Payday rush, people. Fresh checks, fresh mistakes. The laundromat never sleeps. 📻'],
+    kmr:['First of the month energy — the whole city just got paid and your wash runs HOT. 📻','Payday rush, people. Fresh checks, fresh mistakes. The laundromat never sleeps. 📻','Direct deposit hit DIFFERENT today — the whole city\'s flush and foolish. 📻','Payday rush! Every laundry machine in Palmetro is working overtime. 📻'],
   },
   districtUnlock:{
-    kmr:['NEW TURF just opened up in Palmetto City and somebody\'s already moving in. This is DJ KRM, signing your lease. 📻','The map just got BIGGER. New money, new problems. You know the vibe. 📻'],
-    ray:['New streets. New money. Same game. Let\'s ride.'],
-    sal:['I pulled the permits. Don\'t ask what it cost me. The new district is yours. 💼'],
+    kmr:['NEW TURF just opened up in Palmetro City and somebody\'s already moving in. This is DJ KRM, signing your lease. 📻','The map just got BIGGER. New money, new problems. You know the vibe. 📻','Another neighborhood just got a new landlord — and honey, the rent\'s about to be CRIMINAL. 📻','Maps being redrawn as I speak. Keep up. 📻'],
+    ray:['New streets. New money. Same game. Let\'s ride.','Drove the new turf this morning. Good roads. Better opportunities.'],
+    sal:['I pulled the permits. Don\'t ask what it cost me. The new district is yours. 💼','The paperwork alone nearly killed me. You\'re welcome. Again.'],
+    solana:['New streets means a new beach nearby, right? Say yes. 🌴'],
+    camille:['I\'ll host the opening. Invite everyone who matters, and two who don\'t. 🥂'],
   },
   milestone:{
-    kmr:['SHOUTOUT to the hustler making MOVES in Palmetto City. The streets know. 📻','Somebody just hit a MILESTONE and the city\'s feeling it. This is DJ KRM. 📻'],
-    solana:['I heard what you did. The whole beach is talking. 😏','That was impressive, hot stuff. I\'m not easily impressed.'],
+    kmr:['SHOUTOUT to the hustler making MOVES in Palmetro City. The streets know. 📻','Somebody just hit a MILESTONE and the city\'s feeling it. This is DJ KRM. 📻','Another badge on the wall for Palmetro\'s favorite problem. The city FEELS you. 📻','Milestone o\'clock! Somebody pour something expensive. 📻'],
+    solana:['I heard what you did. The whole beach is talking. 😏','That was impressive, hot stuff. I\'m not easily impressed.','Framed the news clipping. It\'s on the fridge. Next to the sunscreen.'],
+    roxy:['Told the strip about it. Nobody argued. Smart crowd. 🏁'],
+    vivienne:['Achievement noted, in writing, forever. My favorite format. 🛥️'],
+    destiny:['A milestone?! Baby, we are CELEBRATING. I\'ll sing. You\'ll cry. 🎤'],
+    yara:['The cypress grew one ring tonight. It grew it for you. 🌳'],
+    camille:['Champagne. The good cellar. Immediately. 🥂'],
+    ray:['Notch on the belt. Get more notches.'],
+    sal:['This is legally significant and emotionally exhausting. Proud of you. 💼'],
   },
   idleReturn:{
-    solana:['Where have you BEEN? The beach missed you. So did I. 🌴','Hot stuff, your tan is fading. This is unacceptable.'],
-    camille:['Darling, your empire doesn\'t run itself. Well — it does. But still.','I\'ve been waiting. The champagne is warm. That\'s your fault.'],
-    roxy:['Yo. The strip\'s been quiet without you. Everything still running?','I won three races while you were gone. THREE. Come catch up. 🏁'],
-    destiny:['Baby I wrote an ENTIRE ALBUM about you being gone. It\'s devastating. 🎤','Where WERE you? My manager said to stop calling. I didn\'t stop.'],
-    yara:['The swamp grew quiet. Kevin was worried. 🐊','You return. The fireflies told me an hour ago.'],
-    vivienne:['Your absence was noted. Your returns are always… adequate. 🛥️','The quarterly numbers are on your desk. They waited. You shouldn\'t have.'],
+    solana:['Where have you BEEN? The beach missed you. So did I. 🌴','Hot stuff, your tan is fading. This is unacceptable.','The tide came in and out, like, a hundred times. I counted. You owe me company. 🌊','Saved you a towel. It\'s the little things.'],
+    camille:['Darling, your empire doesn\'t run itself. Well — it does. But still.','I\'ve been waiting. The champagne is warm. That\'s your fault.','The penthouse was insufferably quiet without you. 🥂','I rehearsed a greeting. I discarded it. You get the arch look instead.'],
+    roxy:['Yo. The strip\'s been quiet without you. Everything still running?','I won three races while you were gone. THREE. Come catch up. 🏁','Street\'s been BORING. My engine\'s cold. Fix that.','Kept your spot warm. By which I mean I burned rubber on it.'],
+    destiny:['Baby I wrote an ENTIRE ALBUM about you being gone. It\'s devastating. 🎤','Where WERE you? My manager said to stop calling. I didn\'t stop.','Changed my number. Same as the old one. Call it anyway.','The studio asked where my muse went. I said "MY what?"'],
+    yara:['The swamp grew quiet. Kevin was worried. 🐊','You return. The fireflies told me an hour ago.','The herons stood on one leg and waited. They\'re still waiting. 🦩','Kevin molted while you were gone. It\'s symbolic of something.'],
+    vivienne:['Your absence was noted. Your returns are always… adequate. 🛥️','The quarterly numbers are on your desk. They waited. You shouldn\'t have.','Your desk accumulated dust and correspondence. I addressed both.','The yacht idled politely. Unlike me.'],
+    ray:['Car\'s gassed. City\'s the same. You weren\'t missed. (You were.)','Held your seat at the bar. It cost me a favor and a round.'],
+    sal:['Everything\'s fine! Mostly fine! Sixty percent fine! Welcome back! 💼','I filed the paperwork under "later." Later is now.'],
+    kmr:['Look who\'s BACK in Palmetro City — the legend returns, right here on your station. 📻'],
   },
   queenUnlock:{
     solana:{msg:'So you\'re the one they\'re talking about. I like the car. I like the jacket more. 🏖️',right:1,opts:['Grab a drink?','Wanna see my tan lines?'],fx:'+10% income · 3 min'},
