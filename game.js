@@ -169,7 +169,7 @@ function defaultState(){
     unlocked:1, active:1, r:{}, up:{lawyer:0,scanner:0,washers:0},
     respect:0, respectGranted:0, spent:{empire:0,laundry:0,whisper:0,kick:0},
     vault:{}, lieuts:{}, lastSal:0, era:1,
-    radio:{st:0,muted:true}, acts:{races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},
+    radio:{st:0,muted:true}, stills:false, acts:{races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},
     queens:{}, inspiredUntil:0, nightCd:0, mile:{},
     msgs:[], unreadMsgs:0, msgBuff:null, deploy:{},
     heistReadyAt:0, frenzy:0, ts:Date.now(),
@@ -183,6 +183,8 @@ let drill=null, drillRAF=0, drillTO=0;
 let cardRefs={}, structureKey='';
 let tickIdx=0;
 const reducedMotion=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+// stills-only mode (SETUP toggle) kills every unsolicited video; the painted still underneath is always there
+const vidsOff=()=>S.stills||reducedMotion();
 
 /* ---------------- UTILS ---------------- */
 const $id=x=>document.getElementById(x);
@@ -291,6 +293,7 @@ function load(){
     S.stats=Object.assign({dirty:0,clean:0,raids:0,heists:0},d.stats);
     S.lieuts=d.lieuts||{}; S.vault=d.vault||{};
     S.radio=Object.assign({st:0,muted:true},d.radio);
+    S.stills=!!d.stills;
     S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},d.acts);
     S.queens=d.queens||{};
     S.mile=d.mile||{};
@@ -331,10 +334,10 @@ function setBg(d){
   target.style.backgroundImage=`url("${img}")`;
   target.classList.add('show'); other.classList.remove('show');
   v.pause(); v.classList.remove('show');
-  if(S.era===1&&d.vid&&!reducedMotion()){
+  if(S.era===1&&d.vid&&!vidsOff()){
     v.src=d.vid; v.poster=img;
     v.play().catch(()=>{});
-  }
+  }else if(v.src){ v.removeAttribute('src'); } // drop stale src so the tap-to-retry handler can't resurrect it
 }
 function districtOf(id){ return DISTRICTS.find(d=>d.id===id); }
 
@@ -548,7 +551,7 @@ function doRaid(t){
     `THEY TOOK ${stolen>=1?$$(stolen):'POCKET LINT'}${lockedName?`<br>${lockedName.toUpperCase()} SHUT DOWN 60s`:''}`;
   const ov=$id('raid-overlay'); ov.hidden=false;
   const rv=$id('raid-vid');
-  rv.src='videos/raid-sting.mp4'; rv.play().catch(()=>{});
+  if(!vidsOff()){ rv.src='videos/raid-sting.mp4'; rv.play().catch(()=>{}); }
   window.Radio&&Radio.sfx.siren();
   clearTimeout(raidTO); raidTO=setTimeout(()=>{ov.hidden=true; rv.pause();},2600);
   checkLieuts();
@@ -1884,6 +1887,7 @@ function renderVaultApp(){
   $id('vault-body').querySelectorAll('.vt.cleared .vart').forEach(el=>{
     el.onclick=()=>{
       if(el.classList.contains('live')){ stopVaultVideos(); return; }
+      if(S.stills){ toast('STILLS ONLY — TURN VIDEOS BACK ON IN SETUP'); return; }
       stopVaultVideos();
       const card=el.closest('.vt');
       const v=document.createElement('video');
@@ -1982,6 +1986,13 @@ function renderLegacyApp(){
 function renderSettingsApp(){
   $id('settings-body').innerHTML=`
     <p class="s-note">Progress saves automatically in this browser. Station + mute live here too.</p>
+    <div class="s-note" style="color:var(--teal)">VISUALS</div>
+    <button id="stills-btn" class="set-tgl${S.stills?' on':''}" aria-pressed="${S.stills}">
+      <span>STILLS ONLY</span><span class="tgl-knob" aria-hidden="true"></span>
+    </button>
+    <p class="s-note" style="margin-top:-2px">${S.stills
+      ?'ON — painted stills everywhere, no video loops. Easier on battery + data.'
+      :'OFF — ambient video loops behind districts, title & raids.'}</p>
     <div class="s-note" style="color:var(--teal)">EXPORT SAVE</div>
     <textarea id="exp" readonly>${JSON.stringify(S)}</textarea>
     <div class="s-note" style="color:var(--teal)">IMPORT SAVE</div>
@@ -1990,6 +2001,13 @@ function renderSettingsApp(){
       <button class="btn-gold" id="imp-btn" style="flex:1">IMPORT</button>
       <button class="btn btn-ghost" id="wipe-btn" style="flex:1">WIPE SAVE</button>
     </div>`;
+  $id('stills-btn').onclick=()=>{
+    S.stills=!S.stills; save();
+    stopVaultVideos();
+    if(started) setBg(districtOf(S.active)); // apply/clear the district loop instantly (no radio side-effects)
+    renderSettingsApp();
+    window.Radio&&Radio.sfx.tick();
+  };
   $id('imp-btn').onclick=()=>{
     try{
       const d=JSON.parse($id('imp').value);
@@ -2135,6 +2153,7 @@ function boot(){
   bgv.addEventListener('error',()=>bgv.classList.remove('show'));
   const has=load();
   if(has){ $id('btn-continue').hidden=false; $id('btn-wipe').hidden=false; }
+  if(S.stills){ $id('title-video').hidden=true; $id('title-poster').hidden=false; }
   $id('btn-continue').onclick=()=>startGame(true);
   $id('btn-wipe').onclick=()=>modal('WIPE EVERYTHING?','<p>The empire. Gone. Like it never happened.</p>',
     [{label:'WIPE',cls:'btn-primary',fn:()=>{try{localStorage.removeItem(SAVE_KEY);}catch(e){} location.reload();}},
