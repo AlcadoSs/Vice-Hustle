@@ -810,10 +810,9 @@ $id('heist-play').addEventListener('click',e=>{
 });
 
 function strike(){
+  // drill SPACE is handled by drill.dialKey; boost by drill.chaseKey
   if(!drill||drill.over)return;
-  const d=drill;
-  if(d.h.kind==='drill')dialStrike();
-  else if(d.h.kind==='boost'){ d.lane=d.lane==='top'?'bot':'top'; setChaseLane(); }
+  if(drill.h.kind==='boost'){ drill.lane=drill.lane==='top'?'bot':'top'; setChaseLane(); }
 }
 $id('heist-modal').addEventListener('click',e=>{
   if(e.target.closest('#drill-close'))return;
@@ -867,12 +866,13 @@ function closeHeist(){
 $id('heist-modal').addEventListener('click',e=>{
   if(e.target.closest('#drill-close')||e.target.closest('.heist-card'))return;
   if(e.target.closest('#boost-board')||e.target.closest('#con-board'))return;
-  if(drill&&!drill.over&&drill.h.kind==='drill')strike();
+  // heist SPACE is handled per-minigame (dialKey/chaseKey); no global strike here
 });
 window.addEventListener('keydown',e=>{
   if(e.code==='Space'&&!$id('heist-modal').hidden){
     e.preventDefault();
-    if(drill&&drill.over)closeHeist(); else strike();
+    if(drill&&drill.over)closeHeist();
+    // no strike() — each minigame manages its own SPACE input
   }
 });
 
