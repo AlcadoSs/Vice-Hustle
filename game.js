@@ -1933,9 +1933,11 @@ function renderQueensApp(){
        S.dirty-=cost; S.inspiredUntil=now()+60000; S.nightCd=now()+600000; dailyBump('night',1);
        const q=QUEENS.filter(x=>S.queens[x.id]);
        const picked=q[q.length?Math.floor(Math.random()*q.length):0];
-       toast(NIGHT_LINES[q.length?Math.floor(Math.random()*q.length):0]);
+       if(picked){ // one roll picks the girl — the toast line and the PULSE text are always hers
+         toast(NIGHT_LINES[QUEENS.indexOf(picked)]);
+         msgFrom(picked.id,'nightOut');
+       }
        window.Radio&&Radio.sfx.fanfare();
-       if(picked)msgFrom(picked.id,'nightOut');
     renderQueensApp();
   };
 }
