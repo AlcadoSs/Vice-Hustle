@@ -490,6 +490,94 @@ body.phone-open #phone{transform:none;visibility:visible;transition:transform .2
 #scr-settings textarea{width:100%;height:64px;background:#0d0718;color:var(--teal);font-family:monospace;font-size:11px;
   border:1px solid rgba(88,247,255,.4);border-radius:8px;padding:6px;margin:6px 0}
 
+/* ---------- STREET RACE · NIGHT DRAG ---------- */
+#tree{display:flex;gap:10px;justify-content:center;margin:6px 0 10px}
+#tree i{width:22px;height:22px;border-radius:50%;background:#3a2b55;border:1px solid rgba(88,247,255,.4);transition:all .1s}
+#tree i.amber{background:var(--orange);box-shadow:0 0 16px var(--orange)}
+#tree i.green{background:#2ee06a;box-shadow:0 0 20px #2ee06a}
+#tach{position:relative;width:230px;height:130px;margin:0 auto}
+#tach svg{width:230px;height:130px}
+#tach .band{fill:none;stroke:var(--teal);stroke-width:9;opacity:.85;filter:drop-shadow(0 0 6px rgba(22,224,189,.8))}
+#tach .arc{fill:none;stroke:#3a2b55;stroke-width:9}
+#tach .red{fill:none;stroke:#ff2e55;stroke-width:9;opacity:.7}
+#needle{transform-origin:115px 115px;transition:transform .05s linear}
+#gear-leds{display:flex;gap:8px;justify-content:center;margin:8px 0}
+#gear-leds i{width:26px;height:12px;border-radius:6px;background:#2a1b46;border:1px solid rgba(88,247,255,.35);font-family:var(--led);
+  font-size:11px;color:#6e5f95;display:flex;align-items:center;justify-content:center}
+#gear-leds i.on{background:var(--teal);color:#062e28;box-shadow:0 0 10px rgba(22,224,189,.8);border-color:var(--teal)}
+#gear-leds i.cur{background:var(--gold);color:#3a2506;border-color:var(--gold);box-shadow:0 0 10px rgba(255,201,74,.8)}
+#race-strip{position:relative;height:84px;border-radius:10px;margin:8px auto;max-width:420px;overflow:hidden;
+  background:linear-gradient(180deg,#191331 0 50%,#231b3f 50% 100%);border:1px solid rgba(88,247,255,.4)}
+#race-strip .lane{position:absolute;left:0;right:0;height:50%}
+#race-strip .l1{top:0;border-bottom:1px dashed rgba(255,255,255,.12)}
+#race-strip .l2{bottom:0}
+#race-strip .rivalline{position:absolute;top:0;bottom:0;left:71.4%;width:2px;background:repeating-linear-gradient(180deg,#ff2e55 0 6px,transparent 6px 12px);opacity:.8}
+.rcar{position:absolute;font-size:30px;left:6px;transition:left .25s;filter:drop-shadow(0 0 8px rgba(88,247,255,.7))}
+#rival-car{top:8px;opacity:.85;filter:drop-shadow(0 0 8px rgba(255,46,80,.7))}
+#you-car{bottom:6px}
+#race-led{font-family:var(--led);font-size:34px;color:var(--pink);text-shadow:0 0 14px rgba(255,46,136,.8);text-align:center;min-height:40px}
+#race-prompt{font-family:var(--led);font-size:17px;color:var(--cyan);text-align:center;min-height:22px}
+#race-strip.flashwin{animation:flag .3s steps(2) 4}
+@keyframes flag{50%{box-shadow:0 0 30px #2ee06a inset}}
+.shake{animation:shake .18s 2}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* ---------- GATOR RACE · SWAMP TRACK ---------- */
+#swamp{position:relative;border-radius:12px;overflow:hidden;margin:10px 0;height:250px;
+  background:url("art/hustles/gator.jpg") center/cover}
+#swamp::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,7,24,.35),rgba(13,7,24,.65))}
+.sw-lane{position:absolute;left:3%;right:3%;height:46px;border-bottom:1px dashed rgba(88,247,255,.25)}
+.sw-lane .tag{position:absolute;left:0;top:2px;font-family:var(--led);font-size:13px;color:var(--gold);
+  background:rgba(13,7,24,.72);border:1px solid rgba(255,201,74,.5);border-radius:7px;padding:1px 7px;z-index:3}
+.sw-gator{position:absolute;bottom:1px;left:0;width:74px;height:30px;transition:left .12s linear;animation:paddle .5s infinite ease-in-out}
+.sw-gator svg{width:100%;height:100%;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
+@keyframes paddle{50%{transform:rotate(3.5deg)}}
+.sw-gator::after{content:"";position:absolute;right:-16px;bottom:8px;width:18px;height:8px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(88,247,255,.5),transparent 70%);animation:wake .6s infinite}
+@keyframes wake{50%{transform:scaleX(1.5);opacity:.4}}
+.sw-mine{outline:2px solid var(--pink);outline-offset:-2px;border-radius:8px;box-shadow:0 0 14px rgba(255,46,136,.5)}
+#swamp-cast{position:absolute;top:6px;right:8px;z-index:3;font-family:var(--led);font-size:14px;color:#ffd9ec;
+  background:rgba(13,7,24,.78);border:1px solid rgba(255,46,136,.5);border-radius:8px;padding:3px 10px;max-width:60%}
+#swamp.slowmo .sw-gator{filter:saturate(1.4) brightness(1.15)}
+.g-bets{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g-bet{position:relative;border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;
+  background:linear-gradient(170deg,#221739,#160f2a);border:1px solid rgba(88,247,255,.3);transition:all .15s}
+.g-bet:hover{border-color:var(--gold);box-shadow:0 0 14px rgba(255,201,74,.3)}
+.g-bet .n{font-family:var(--disp);font-size:13px;display:flex;justify-content:space-between}
+.g-bet .odds{font-family:var(--led);color:var(--gold)}
+.g-bet .form{display:flex;gap:3px;margin-top:6px}
+.g-bet .form i{width:8px;height:8px;border-radius:50%;background:#3a2b55}
+.g-bet .form i.w{background:var(--teal);box-shadow:0 0 6px rgba(22,224,189,.7)}
+.g-bet .scarf{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+/* ---------- SCRATCH · THE TICKET ---------- */
+#ticket{position:relative;max-width:340px;margin:0 auto;border-radius:14px;padding:14px 14px 10px;
+  background:linear-gradient(170deg,#2b1f10,#1a1208);border:2px solid transparent;
+  background-clip:padding-box;box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 20px rgba(255,201,74,.15);
+  background-image:linear-gradient(170deg,#2b1f10,#1a1208),linear-gradient(160deg,#ffe9b0,#8a6f2f 40%,#fff3cf 60%,#6f5722)}
+#tkt-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+#tkt-head .brand{font-family:var(--disp);font-size:15px;letter-spacing:.06em;color:var(--gold)}
+#tkt-head .serial{font-family:var(--led);font-size:13px;color:#9d8cc4}
+#tkt-grid{display:grid;grid-template-columns:repeat(3,92px);gap:8px;justify-content:center;cursor:crosshair}
+.tcell{position:relative;width:92px;height:92px;border-radius:10px;overflow:hidden;
+  background:linear-gradient(170deg,#221739,#160f2a);border:1px solid rgba(88,247,255,.35)}
+.tcell .sym{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.tcell .sym svg{width:44px;height:44px}
+.tcell canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.tcell.revealed canvas{animation:foilout .35s forwards}
+@keyframes foilout{to{opacity:0;transform:scale(1.15)}}
+.tcell .sym{transition:transform .25s}
+.tcell.pop .sym{animation:pop .4s}
+@keyframes pop{40%{transform:scale(1.35)}}
+.tcell.winmatch{border-color:var(--gold);box-shadow:0 0 16px rgba(255,201,74,.7);animation:winpulse .8s 2}
+@keyframes winpulse{50%{box-shadow:0 0 26px rgba(255,201,74,1)}}
+#tkt-pay{display:flex;gap:6px;justify-content:space-between;margin-top:10px;font-family:var(--led);font-size:12.5px;color:#c9b8e8}
+#tkt-pay b{color:var(--gold)}
+#tkt-result{font-family:var(--led);font-size:24px;text-align:center;margin-top:12px;min-height:28px}
+#confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:5}
+#confetti i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(340px) rotate(720deg);opacity:.2}}
+
 /* ---------- responsive ---------- */
 @media (max-width:760px){
   #hud-left{min-width:0}

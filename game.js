@@ -834,151 +834,292 @@ function gatorStake(){ return Math.max(500,Math.round(totalIncome()*90)); }
 
 $id('btn-play')&&0; // (menus now live in the Vice Phone)
 
-/* ----- street race ----- */
-let streetRAF=0;
+/* ============================================================
+   SIDE HUSTLES v2 · Night Drag / Swamp Track / The Ticket
+   (economy identical: stakes, odds, cooldowns, payouts, EV)
+   ============================================================ */
+
+/* ----- STREET RACE · NIGHT DRAG ----- */
+let dragR=null, dragRAF=0;
+const CAR_SVG=(color,glow)=>`<svg viewBox="0 0 40 18" style="width:44px;height:20px"><path d="M3 13 L8 6 L20 4 L30 6 L38 10 L37 14 L30 13 L27 16 L22 13 L14 13 L11 16 L6 13 Z" fill="${color}" stroke="${glow}" stroke-width="1"/><circle cx="12" cy="6.5" r="2.6" fill="#0d0718" stroke="${glow}"/><circle cx="24" cy="5.5" r="2.6" fill="#0d0718" stroke="${glow}"/></svg>`;
 function openStreetRace(){
   if(now()<S.acts.scd){toast('THE STRIP NEEDS A BREATH — '+mmss((S.acts.scd-now())/1000));return;}
   const stake=actStake();
   if(S.dirty<stake){toast('NEED '+$$(stake)+' DIRTY TO ENTER');return;}
   S.dirty-=stake; S.acts.races++; S.acts.scd=now()+RACE_CD;
-  modal('STREET RACE',
-    `<p class="led-line">STAKE ${$$(stake)} · WIN ${$$(stake*2*(has('roxy')?2:1))}</p>
-     <div id="sr-track" style="position:relative;height:54px;border-radius:10px;max-width:520px;margin:12px auto;cursor:pointer;
-       background:repeating-linear-gradient(90deg,#1a1430 0 26px,#201939 26px 52px);border:1px solid rgba(88,247,255,.5);overflow:hidden">
-       <div id="sr-zone" style="position:absolute;top:0;bottom:0;background:rgba(22,224,189,.35);border-left:2px solid var(--teal);border-right:2px solid var(--teal)"></div>
-       <div id="sr-marker" style="position:absolute;top:0;bottom:0;width:5px;background:#fff;box-shadow:0 0 14px #fff"></div>
+  dragR={rpm:0,dir:1,rate:.55,gear:1,mph:0,over:false,last:0,running:false,stage:'tree',stake};
+  modal('STREET RACE · NIGHT DRAG',
+    `<div id="tree"><i></i><i></i><i></i><i></i></div>
+     <div id="tach"><svg viewBox="0 0 230 130">
+       <path class="arc" d="M20 115 A95 95 0 0 1 210 115"/>
+       <path class="band" d="M195.2 64.2 A95 95 0 0 1 209.1 103.1"/>
+       <path class="red" d="M209.1 103.1 A95 95 0 0 1 210 115"/>
+       <line id="needle" x1="115" y1="115" x2="115" y2="32" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+       <circle cx="115" cy="115" r="6" fill="#ffd977"/>
+     </svg></div>
+     <div id="gear-leds">${[1,2,3,4,5].map(g=>`<i class="${g===1?'cur':''}">${g}</i>`).join('')}</div>
+     <div id="race-strip">
+       <div class="lane l1"></div><div class="lane l2"></div><div class="rivalline" title="RIVAL PACE — 100 MPH"></div>
+       <span id="rival-car" class="rcar">${CAR_SVG('#7a2f55','#ff5d7a')}</span>
+       <span id="you-car" class="rcar">${CAR_SVG('#2a6f68','#16e0bd')}</span>
      </div>
-     <div id="race-meter">0 MPH</div><div id="race-gear">GEAR 1 / 5 — TAP THE GREEN</div>`,
-    []);
-  const st={pos:0,dir:1,speed:.85,gear:1,mph:0,zone:{c:.5,w:.22},last:performance.now(),over:false};
-  const track=$id('sr-track');
-  const draw=()=>{ $id('sr-marker').style.left=(st.pos*100)+'%';
-    $id('sr-zone').style.left=((st.zone.c-st.zone.w/2)*100)+'%'; $id('sr-zone').style.width=(st.zone.w*100)+'%'; };
-  draw();
-  const frame=ts=>{
-    if(!st.over){ const dt=Math.min(.05,(ts-st.last)/1000); st.last=ts;
-      st.pos+=st.dir*st.speed*dt;
-      if(st.pos>1){st.pos=2-st.pos;st.dir=-1;} if(st.pos<0){st.pos=-st.pos;st.dir=1;}
-      $id('sr-marker').style.left=(st.pos*100)+'%';
-    }
-    streetRAF=requestAnimationFrame(frame);
-  };
-  streetRAF=requestAnimationFrame(frame);
-  const strikeR=()=>{
-    if(st.over)return;
-    const off=Math.abs(st.pos-st.zone.c);
-    let gain,word;
-    if(off<=st.zone.w*.25){gain=28;word='PERFECT!';}
-    else if(off<=st.zone.w*.5){gain=19;word='GOOD';}
-    else{gain=6;word='BOGGED';}
-    st.mph+=gain; st.speed+=.12;
-    $id('race-meter').textContent=Math.round(st.mph)+' MPH';
-    window.Radio&&Radio.sfx.blip(440+st.gear*110);
-    if(st.gear>=5){ endStreet(st,stake); return; }
-    st.gear++;
-    $id('race-gear').textContent=`GEAR ${st.gear} / 5 — ${word}`;
-    st.zone={c:.15+Math.random()*.7,w:Math.max(.12,.22-.015*st.gear)};
-    draw();
-  };
-  track.onclick=strikeR;
+     <div id="race-led">0 MPH</div><div id="race-prompt">WATCH THE TREE…</div>`,
+    [{label:'BAIL',cls:'btn-ghost',fn:()=>{dragR=null;cancelAnimationFrame(dragRAF);closeModal();}}]);
+  dragR={rpm:0,dir:1,rate:.55,gear:1,mph:0,over:false,last:0,running:false,stage:'tree'};
+  const tree=$id('tree').children;
+  const modalBox=$id('modal-body');
+  let tstep=0;
+  const treeTO=setTimeout(()=>{ // pre-stage lights
+    const seq=setInterval(()=>{
+      if(tstep<3){tree[tstep].classList.add('amber');window.Radio&&Radio.sfx.blip(300+tstep*60);tstep++;}
+      else{
+        clearInterval(seq);tree[3].classList.add('green');window.Radio&&Radio.sfx.blip(880);
+        dragR.running=true;dragR.last=performance.now();dragR.stage='run';
+        $id('race-prompt').textContent='SHIFT IN THE TEAL BAND — TAP / SPACE';
+        dragRAF=requestAnimationFrame(dragFrame);
+      }
+    },520);
+    dragR.clearSeq=()=>clearInterval(seq);
+  },350);
+  modalBox.onpointerdown=e=>{ if(dragR&&dragR.stage==='run')shiftDrag(); };
+  window.addEventListener('keydown',dragKey,{once:false});
+  function dragKey(e){ if(e.code==='Space'&&dragR&&!dragR.over&&dragR.stage==='run'){e.preventDefault();shiftDrag();} }
+  dragR.cleanup=()=>{window.removeEventListener('keydown',dragKey);dragR.clearSeq&&dragR.clearSeq();clearTimeout(treeTO);cancelAnimationFrame(dragRAF);};
 }
-function endStreet(st,stake){
-  st.over=true; cancelAnimationFrame(streetRAF);
-  const win=st.mph>=100, mult=2*(has('roxy')?2:1);
-  let body=`<div id="race-meter">${Math.round(st.mph)} MPH</div>`;
-  if(win){ S.dirty+=stake*mult; S.acts.swins++;
-    body+=`<p class="led-line" style="color:var(--teal)">WINNER — ${$$(stake*mult)} DIRTY</p>`;
-    window.Radio&&Radio.sfx.fanfare();
-  }else{ body+=`<p class="led-line" style="color:#ff5d7a">OUT-DRAGGED. THE STAKE'S GONE.</p>`; window.Radio&&Radio.sfx.bust(); }
-  modal('STREET RACE — RESULT',body,[{label:'ROLL OUT',cls:'btn-primary',fn:()=>{closeModal();checkQueens();}}]);
+function dragFrame(ts){
+  if(!dragR||dragR.over)return;
+  const dt=Math.min(.05,(ts-dragR.last)/1000); dragR.last=ts;
+  dragR.rpm+=dragR.dir*dragR.rate*(1+ (dragR.gear-1)*.28)*dt*100;
+  if(dragR.rpm>=100){dragR.rpm=100;dragR.dir=-1;}
+  if(dragR.rpm<=0){dragR.rpm=0;dragR.dir=1;}
+  $id('needle').setAttribute('transform',`rotate(${(dragR.rpm*1.8-90).toFixed(1)} 115 115)`);
+  dragRAF=requestAnimationFrame(dragFrame);
+}
+function shiftDrag(){
+  const r=dragR; if(!r||r.over)return;
+  let gain,word,cls;
+  if(r.rpm>=82&&r.rpm<96){gain=28;word='PERFECT SHIFT!';cls='teal';}
+  else if(r.rpm>=58){gain=19;word='GOOD';cls='';}
+  else{gain=6;word='BOGGED…';cls='heat-up';}
+  r.mph+=gain; r.rate+=.1;
+  $id('race-led').textContent=Math.round(r.mph)+' MPH';
+  $id('you-car').style.left=(4+Math.min(1,r.mph/140)*92)+'%';
+  $id('race-prompt').innerHTML=`<span class="${cls}">${word}</span>`;
+  window.Radio&&Radio.sfx.blip(380+r.gear*120);
+  const leds=$id('gear-leds').children;
+  if(r.gear>=5){endDrag();return;}
+  leds[r.gear-1].classList.remove('cur');leds[r.gear-1].classList.add('on');
+  leds[r.gear].classList.add('cur');
+  r.gear++;
+}
+function endDrag(){
+  const r=dragR;r.over=true;r.cleanup&&r.cleanup();
+  const win=r.mph>=100, pay=r.stake*2*(has('roxy')?2:1);
+  if(win){const s=$id('race-strip');s&&s.classList.add('flashwin');S.acts.swins++;S.dirty+=pay;}
+  else{const s=$id('race-strip');s&&s.classList.add('shake');}
+  window.Radio&&(win?Radio.sfx.fanfare():Radio.sfx.bust());
+  setTimeout(()=>{
+    modal('STREET RACE · RESULT', win
+      ? `<div id="race-led">${Math.round(r.mph)} MPH</div>
+         <p class="led-line" style="color:var(--teal)">TAKE THE STRIP — ${$$(pay)} DIRTY!</p>`
+      : `<div id="race-led">${Math.round(r.mph)} MPH</div>
+         <p class="led-line" style="color:#ff5d7a">OUT-DRAGGED. TAILLIGHTS. THE STAKE'S GONE.</p>`,
+      [{label:'COLLECT',cls:'btn-primary',fn:()=>{closeModal();checkQueens();updateBadges();}}]);
+  },650);
 }
 
-/* ----- gator race ----- */
-let gatorTO=0;
+/* ----- GATOR RACE · SWAMP TRACK ----- */
+const SCARF_COLORS=['#ff5d5d','#ffd977','#16e0bd','#ff2e88'];
+const GATOR_SVG=(scarf)=>`<svg viewBox="0 0 74 30">
+  <path fill="#2f7d4f" d="M4 19 q4-9 18-9 h18 q12 0 18 5 l12-4 -7 8 q1 6-7 8 l-5-4 h-5 l-3 5 h-7 l-2-5 h-8 l-3 5 h-7 l-2-5 q-8 0-10-5z"/>
+  <circle cx="55" cy="14" r="1.8" fill="#ffd977"/>
+  <path d="M58 18 l10 2 -9 2z" fill="#1d5133"/>
+  <rect x="26" y="7" width="11" height="5" rx="2.5" fill="${scarf}"/>
+</svg>`;
+const GATOR_FORM=[3,2,4,1]; // flavor only
+function gatorForm(g){ // deterministic per-session quips, no economy meaning
+  return Array.from({length:5},(_,k)=>((g*7+k*13)%10)<5?'<i></i>':'<i class="w"></i>').join('');
+}
+let swampTO=0;
 function openGatorRace(){
   if(now()<S.acts.gcd){toast('THE SWAMP NEEDS A BREATH — '+mmss((S.acts.gcd-now())/1000));return;}
   const stake=gatorStake();
   if(S.dirty<stake){toast('NEED '+$$(stake)+' DIRTY TO ENTER');return;}
-  let html=`<p class="led-line">STAKE ${$$(stake)} · PICK YOUR GATOR</p>`;
-  GATORS.forEach((g,i)=>{
-    html+=`<div class="racer" data-i="${i}">
-      <div class="r-ico" style="filter:hue-rotate(${g.hue}deg)">🐊</div>
-      <div class="r-track"><i></i></div>
-      <div class="r-odds">×${g.odds}</div>
-      <button class="btn btn-mini">BET ${g.name.toUpperCase()}</button>
-    </div>`;
-  });
-  html+=`<div id="gator-status" class="led-line" style="margin-top:8px"></div>`;
-  modal('GATOR RACES',html,[{label:'WALK AWAY',cls:'btn-ghost',fn:closeModal}]);
-  $id('modal-body').querySelectorAll('.racer button').forEach(b=>{
-    b.onclick=()=>runGator(+b.closest('.racer').dataset.i,stake);
+  modal('GATOR RACES · SWAMP TRACK',
+    `<p class="led-line">STAKE ${$$(stake)} · PICK YOUR GATOR</p>
+     <div class="g-bets">${GATORS.map((g,i)=>`
+       <button class="g-bet" data-i="${i}">
+         <span class="n"><span><span class="scarf" style="background:${SCARF_COLORS[i]}"></span>${g.name}</span><span class="odds">×${g.odds}</span></span>
+         <span class="form">${gatorForm(GATOR_FORM[i])}</span>
+       </button>`).join('')}</div>`,
+    [{label:'WALK AWAY',cls:'btn-ghost',fn:closeModal}]);
+  $id('modal-body').querySelectorAll('.g-bet').forEach(b=>{
+    b.onclick=()=>runSwamp(+b.dataset.i,stake);
   });
 }
-function runGator(pick,stake){
+function runSwamp(pick,stake){
   S.dirty-=stake; S.acts.races++; S.acts.gcd=now()+RACE_CD;
-  const rows=[...$id('modal-body').querySelectorAll('.racer')];
-  rows.forEach(r=>r.querySelector('button').disabled=true);
+  const lanes=[10,33,56,79];
+  modal('GATOR RACES · SWAMP TRACK',
+    `<div id="swamp">
+       <div id="swamp-cast">THEY'RE OFF!</div>
+       ${GATORS.map((g,i)=>`
+       <div class="sw-lane" style="top:${lanes[i]}%">
+         <span class="tag">${g.name} ×${g.odds}</span>
+         <span class="sw-gator ${i===pick?'sw-mine':''}" id="sw-${i}" style="bottom:2px">${GATOR_SVG(SCARF_COLORS[i])}</span>
+       </div>`).join('')}
+     </div>`,
+    []);
   const prog=GATORS.map(()=>0);
-  $id('gator-status').textContent='THEY\'RE OFF!';
-  clearInterval(gatorTO);
-  gatorTO=setInterval(()=>{
-    let done=-1;
+  let leader=-1, slow=false;
+  clearInterval(swampTO);
+  swampTO=setInterval(()=>{
+    const step=slow?170:110;
+    let done=-1,maxP=0;
     GATORS.forEach((g,i)=>{
       if(prog[i]>=100)return;
-      prog[i]+=3.4*Math.pow(1/g.odds,.65)*(0.4+Math.random()*1.2);
-      rows[i].querySelector('.r-track i').style.width=Math.min(100,prog[i])+'%';
-      if(prog[i]>=100&&done<0)done=i;
+      prog[i]+=3.4*Math.pow(1/g.odds,.65)*(0.4+Math.random()*1.2)*(slow?.45:1);
+      maxP=Math.max(maxP,prog[i]);
+      const el=$id('sw-'+i);
+      if(el)el.style.left=Math.min(88,prog[i]*.88)+'%';
     });
+    // commentary on lead change
+    const front=prog.indexOf(Math.max(...prog));
+    if(front!==leader&&prog[front]>12){
+      leader=front;
+      const quips=['HITS THE FRONT!','SURGES AHEAD!','TAKES THE LEAD!','IS HUNGRY TODAY!'];
+      $id('swamp-cast').textContent=GATORS[front].name.toUpperCase()+' '+quips[Math.floor(Math.random()*quips.length)];
+    }
+    if(!slow&&maxP>80){slow=true;$id('swamp').classList.add('slowmo');$id('swamp-cast').textContent='PHOTO FINISH…';}
+    GATORS.forEach((g,i)=>{ if(prog[i]>=100&&done<0)done=i; });
     if(done>=0){
-      clearInterval(gatorTO);
-      rows.forEach((r,i)=>{ if(i===done)r.classList.add('done'); });
-      const g=GATORS[done];
-      if(pick===done){
-        const pay=stake*g.odds*(has('yara')?1.5:1);
-        S.dirty+=pay; S.acts.gwins++;
-        $id('gator-status').innerHTML=`<span class="gold">${g.name.toUpperCase()} TAKES IT — ${$$(pay)} DIRTY!</span>`;
-        window.Radio&&Radio.sfx.fanfare();
-      }else{
-        $id('gator-status').innerHTML=`<span style="color:#ff5d7a">${g.name.toUpperCase()} TAKES IT. YOUR GATOR WENT FOR A SNACK.</span>`;
-        window.Radio&&Radio.sfx.bust();
-      }
-      setTimeout(()=>{ modal('GATOR RACES — RESULT',$id('gator-status').innerHTML,
-        [{label:'BACK TO THE SWAMP',cls:'btn-primary',fn:()=>{closeModal();checkQueens();}}]); },600);
+      clearInterval(swampTO);
+      const g=GATORS[done], won=pick===done;
+      const pay=won?stake*g.odds*(has('yara')?1.5:1):0;
+      if(won){S.dirty+=pay;S.acts.gwins++;}
+      window.Radio&&(won?Radio.sfx.fanfare():Radio.sfx.bust());
+      setTimeout(()=>modal('GATOR RACES · RESULT', won
+        ? `<p class="led-line" style="font-size:26px;color:var(--gold)">${g.name.toUpperCase()} TAKES THE SWAMP!</p>
+           <p class="led-line">PAYOUT ${$$(pay)} DIRTY${has('yara')?' · YARA ×1.5':''}</p>`
+        : `<p class="led-line" style="font-size:26px;color:#ff5d7a">${g.name.toUpperCase()} TAKES IT.</p>
+           <p class="led-line">YOURS WENT FOR A SNACK.</p>`,
+        [{label:'BACK TO THE SWAMP',cls:'btn-primary',fn:()=>{closeModal();checkQueens();updateBadges();}}]),700);
     }
   },110);
 }
 
-/* ----- scratch cards ----- */
-const SCRATCH_SYMS=['🍒','🍋','⭐','🔔','💎','7️⃣','🌴','🐍'];
+/* ----- SCRATCH CARDS · THE TICKET ----- */
+const TKT_SYMS=[
+  ['cherry','<circle cx="9" cy="15" r="5" fill="#ff2e55"/><circle cx="17" cy="17" r="5" fill="#c1122f"/><path d="M9 10 Q13 3 19 5 M17 12 Q19 6 19 5" stroke="#16e0bd" stroke-width="2" fill="none"/>'],
+  ['lemon','<ellipse cx="12" cy="14" rx="9" ry="6.5" fill="#ffd977"/><path d="M3 14 l-2-1 2-1 M21 14 l2-1-2-1" stroke="#e0a72e" stroke-width="2"/>'],
+  ['star','<path d="M12 3l2.4 5.4L20 9l-4 4 1 5.8L12 16l-5 2.8L8 13 4 9l5.6-.6z" fill="#58f7ff"/>'],
+  ['bell','<path d="M12 4a6 6 0 0 1 6 6v4l2 2H4l2-2v-4a6 6 0 0 1 6-6z" fill="#ffc94a"/><circle cx="12" cy="19" r="2" fill="#e0a72e"/>'],
+  ['diamond','<path d="M12 3l8 8-8 10-8-10z" fill="#16e0bd"/><path d="M4 11h16M12 3v18" stroke="#0d9c85" stroke-width="1"/>'],
+  ['seven','<path d="M6 5h12l-7 15" stroke="#ff2e88" stroke-width="3.5" fill="none" stroke-linecap="round"/>'],
+  ['palm','<path d="M12 21V10M12 10Q6 8 4 11Q8 9 12 10Q16 6 20 9Q15 8 12 10" stroke="#16e0bd" stroke-width="2.4" fill="none"/><path d="M10 21h4" stroke="#8a6f2f" stroke-width="2.4"/>'],
+  ['snake','<path d="M5 18q4-6 8-3t7-6" stroke="#2ee06a" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="20" cy="8" r="1.6" fill="#ffd977"/>'],
+];
+const TKT_WEIGHTS=[13,13,12,12,12,12,12,12];
+const TKT_SVG=i=>`<svg viewBox="0 0 24 24" fill="none">${TKT_SYMS[i][1]}</svg>`;
+let tkt=null;
 function openScratch(){
   const cost=Math.max(500,Math.round(totalIncome()*30));
   if(S.dirty<cost){toast('NEED '+$$(cost)+' DIRTY');return;}
   S.dirty-=cost; S.acts.scratch++;
-  const bag=[]; SCRATCH_SYMS.forEach((s,i)=>{ for(let k=0;k<[13,13,12,12,12,12,12,12][i];k++)bag.push(s); });
+  const bag=[]; TKT_WEIGHTS.forEach((w,i)=>{for(let k=0;k<w;k++)bag.push(i);});
   const cells=Array.from({length:9},()=>bag[Math.floor(Math.random()*bag.length)]);
-  modal('SCRATCH CARD',
-    `<p class="led-line">CARD ${$$(cost)} · 4 OF A KIND ×2.5 · 5+ ×30</p>
-     <div class="scratch">${cells.map((c,i)=>`<div class="scell" data-i="${i}">?</div>`).join('')}</div>
-     <div id="scr-status" class="led-line">TAP THE CARD</div>`,
-    [{label:'TOSS IT',cls:'btn-ghost',fn:closeModal}]);
-  let rev=0;
-  const grid=$id('modal-body').querySelectorAll('.scell');
-  grid.forEach(el=>el.onclick=()=>{
-    if(el.classList.contains('rev'))return;
-    el.classList.add('rev'); el.textContent=cells[+el.dataset.i];
-    window.Radio&&Radio.sfx.tick();
-    if(++rev===9)scoreScratch(cells,cost,grid);
+  const serial='N'+String(100000+Math.floor(Math.random()*900000));
+  modal('SCRATCH · THE TICKET',
+    `<div id="ticket">
+       <div id="tkt-head"><span class="brand">PALMETTO PALMS LOTTO</span><span class="serial">${serial}</span></div>
+       <div id="tkt-grid">${cells.map((c,i)=>`
+         <div class="tcell" data-i="${i}">
+           <div class="sym">${TKT_SVG(c)}</div>
+           <canvas width="92" height="92"></canvas>
+         </div>`).join('')}</div>
+       <div id="tkt-pay"><span>CARD <b>${$$(cost)}</b></span><span>4 OF A KIND <b>×2.5</b></span><span>5+ <b>×30</b></span></div>
+       <div id="tkt-result"></div>
+       <div id="confetti"></div>
+     </div>`,
+    [{label:'REVEAL ALL',cls:'btn-ghost',fn:()=>{},keep:true},
+     {label:'TOSS',cls:'btn-ghost',fn:()=>{tkt=null;closeModal();}}]);
+  tkt={cells,cost,revealed:0,scratch:{}};
+  const gridEl=[...$id('modal-body').querySelectorAll('.tcell')];
+  const revealBtn=[...$id('modal-buttons').querySelectorAll('.btn')].find(b=>b.textContent==='REVEAL ALL');
+  revealBtn.onclick=()=>gridEl.forEach(cel=>revealCell(cel,true));
+  gridEl.forEach(cel=>{
+    const cv=cel.querySelector('canvas'),ctx=cv.getContext('2d');
+    paintFoil(ctx);
+    let strokes=0;
+    const scratchAt=e=>{
+      const r=cv.getBoundingClientRect();
+      const x=(e.clientX-r.left)*(92/r.width),y=(e.clientY-r.top)*(92/r.height);
+      ctx.globalCompositeOperation='destination-out';
+      ctx.beginPath();ctx.arc(x,y,15,0,7);ctx.fill();
+      if(++strokes===7)revealCell(cel,false);
+    };
+    cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);tkt.down=true;scratchAt(e);});
+    cv.addEventListener('pointermove',e=>{if(tkt.down)scratchAt(e);});
+    cv.addEventListener('pointerup',()=>{if(tkt)tkt.down=false;});
   });
 }
-function scoreScratch(cells,cost,grid){
-  const counts={}; cells.forEach(c=>counts[c]=(counts[c]||0)+1);
-  let best=0,bsym=null;
-  for(const [s,n] of Object.entries(counts)){ if(n>best){best=n;bsym=s;} }
+function paintFoil(ctx){
+  ctx.globalCompositeOperation='source-over';
+  const g=ctx.createLinearGradient(0,0,92,92);
+  g.addColorStop(0,'#9aa7c4');g.addColorStop(.5,'#dfe7f5');g.addColorStop(1,'#8a97b5');
+  ctx.fillStyle=g;ctx.fillRect(0,0,92,92);
+  ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(10,70);ctx.lineTo(70,10);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(30,82);ctx.lineTo(82,30);ctx.stroke();
+}
+function revealCell(cel,auto){
+  if(!tkt||cel.classList.contains('revealed'))return;
+  cel.classList.add('revealed','pop');
+  window.Radio&&Radio.sfx.tick();
+  if(++tkt.revealed===9)finishTicket();
+}
+function finishTicket(){
+  const {cells,cost}=tkt;
+  const counts={};cells.forEach(c=>counts[c]=(counts[c]||0)+1);
+  let best=0,bsym=-1;
+  for(const [s,n] of Object.entries(counts)){if(n>best){best=n;bsym=+s;}}
   const mult=best>=5?30:best===4?2.5:0;
-  if(mult>0){ grid.forEach(el=>{ if(el.textContent===bsym)el.classList.add('win'); }); }
   const pay=cost*mult;
-  if(pay>0){ S.dirty+=pay; $id('scr-status').innerHTML=`<span class="gold">${best}× ${bsym} — ${$$(pay)} DIRTY!</span>`; window.Radio&&Radio.sfx.chaChing(); }
-  else $id('scr-status').textContent='NOTHING. THE HOUSE SENDS ITS REGARDS.';
+  const cellEls=[...$id('modal-body').querySelectorAll('.tcell')];
+  // suspense: winners pulse one by one
+  const winners=cellEls.filter((el,i)=>mult>0&&cells[i]===bsym);
+  winners.forEach((el,i)=>setTimeout(()=>el.classList.add('winmatch'),400+i*380));
+  setTimeout(()=>{
+    const res=$id('tkt-result');
+    if(pay>0){
+      S.dirty+=pay;
+      window.Radio&&Radio.sfx.chaChing();
+      if(mult>=30){confettiBurst();window.Radio&&Radio.sfx.fanfare();}
+      // count-up
+      const t0=performance.now();
+      const tick=ts=>{
+        const k=Math.min(1,(ts-t0)/900);
+        if(res)res.innerHTML=`<span class="gold">${best}× ${TKT_SYMS[bsym][0].toUpperCase()} — ${$$(pay*k)} DIRTY!</span>`;
+        if(k<1)requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }else{
+      res.textContent='NOTHING. THE HOUSE SENDS ITS REGARDS.';
+    }
+    tkt=null;
+  },400+winners.length*380+500);
+}
+function confettiBurst(){
+  const box=$id('confetti');if(!box)return;
+  const colors=['#FF2E88','#16E0BD','#FFC94A','#58F7FF'];
+  for(let i=0;i<56;i++){
+    const p=document.createElement('i');
+    p.style.left=Math.random()*100+'%';
+    p.style.background=colors[i%4];
+    p.style.animationDuration=(1.2+Math.random()*1.4)+'s';
+    p.style.animationDelay=(Math.random()*.5)+'s';
+    box.appendChild(p);
+  }
 }
 
 /* ---------------- VICE PHONE ---------------- */
