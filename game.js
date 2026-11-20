@@ -269,6 +269,11 @@ function decayRate(){
   let d=.5+.5*S.up.lawyer+S.heat*.025;
   if(has('kmr'))d+=.5;
   if(msgBuffActive('yara'))d+=1;
+  // racket-scaled cooling: each owned racket adds passive heat dissipation,
+  // so late-game empires can actually fight the Task Force
+  let total=0;
+  for(const id in S.r)total+=S.r[id].n||0;
+  d+=total*.5;
   return d;
 }
 function costOf(r,k){ const cur=rs(r.id).n,b=r.cost*Math.pow(1.15,cur); return b*(Math.pow(1.15,k)-1)/.15; }
