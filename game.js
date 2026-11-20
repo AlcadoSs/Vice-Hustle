@@ -281,6 +281,14 @@ function load(){
     S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},d.acts);
     S.queens=d.queens||{};
     S.mile=d.mile||{};
+    // sanitize: heal saves poisoned by an old Infinity payout (JSON turns Infinity into null)
+    for(const k of ['dirty','clean','heat','respect','respectGranted','lastSal','heistReadyAt','frenzy','inspiredUntil','nightCd']){
+      const v=S[k];
+      if(typeof v!=='number'||!isFinite(v))S[k]=0;
+    }
+    for(const id in S.r){const st=S.r[id];
+      if(!st||typeof st.n!=='number'||!isFinite(st.n))S.r[id]={n:0,lock:0};
+      else if(typeof st.lock!=='number'||!isFinite(st.lock))st.lock=0;}
     return true;
   }catch(e){ return false; }
 }
@@ -872,14 +880,13 @@ function openStreetRace(){
   const stake=actStake();
   if(S.dirty<stake){toast('NEED '+$$(stake)+' DIRTY TO ENTER');return;}
   S.dirty-=stake; S.acts.races++; S.acts.scd=now()+RACE_CD;
-  dragR={rpm:0,dir:1,rate:.55,gear:1,mph:0,over:false,last:0,running:false,stage:'tree',stake};
   modal('STREET RACE · NIGHT DRAG',
     `<div id="tree"><i></i><i></i><i></i><i></i></div>
      <div id="tach"><svg viewBox="0 0 230 130">
        <path class="arc" d="M20 115 A95 95 0 0 1 210 115"/>
        <path class="band" d="M195.2 64.2 A95 95 0 0 1 209.1 103.1"/>
        <path class="red" d="M209.1 103.1 A95 95 0 0 1 210 115"/>
-       <line id="needle" x1="115" y1="115" x2="115" y2="32" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+       <line id="needle" x1="115" y1="115" x2="115" y2="32" stroke="#fff" stroke-width="3" stroke-linecap="round" transform="rotate(-90 115 115)"/>
        <circle cx="115" cy="115" r="6" fill="#ffd977"/>
      </svg></div>
      <div id="gear-leds">${[1,2,3,4,5].map(g=>`<i class="${g===1?'cur':''}">${g}</i>`).join('')}</div>
@@ -894,11 +901,13 @@ function openStreetRace(){
        <img id="rival-sv" class="sv-car" alt="">
        <img id="you-sv" class="sv-car" alt="">
      </div>
-     <div id="race-led">0 MPH</div><div id="race-prompt">WATCH THE TREE…</div>`,
+     <div id="race-led">0 MPH</div><div id="race-prompt">WATCH THE TREE…</div>
+     <p class="led-line" style="text-align:center">STAKE ${$$(stake)} · WIN ${$$(stake*2*(has('roxy')?2:1))}</p>`,
     [{label:'BAIL',cls:'btn-ghost',fn:()=>{dragR=null;cancelAnimationFrame(dragRAF);closeModal();}}]);
   // painted sprites, chroma-keyed off the green screen; drawn SVG fallback
   keyedCar('art/cars/player.jpg',u=>{const el=$id('you-sv');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
   keyedCar('art/cars/rival.jpg',u=>{const el=$id('rival-sv');if(el)el.src=u||CAR_SIDE('#7a2f55','#ff5d7a');});
+  dragR={rpm:0,dir:1,rate:.55,gear:1,mph:0,over:false,last:0,running:false,stage:'tree',stake};
   dragR={rpm:0,dir:1,rate:.55,gear:1,mph:0,over:false,last:0,running:false,stage:'tree'};
   const tree=$id('tree').children;
   const modalBox=$id('modal-body');
@@ -926,8 +935,8 @@ function openStreetRace(){
 }
 function dragFrame(ts){
   if(!dragR||dragR.over)return;
-  // generous dt cap: keeps the drag near real-time even in throttled/background renderers
-  const dt=Math.min(.5,Math.max(0,(ts-dragR.last)/1000)); dragR.last=ts;
+  // wall-clock dt (2s cap) so the drag runs at TRUE real-time pace even in throttled renderers
+  const dt=Math.min(2,Math.max(0,(ts-dragR.last)/1000)); dragR.last=ts;
   dragR.rpm+=dragR.dir*dragR.rate*(1+ (dragR.gear-1)*.28)*dt*100;
   if(dragR.rpm>=100){dragR.rpm=100;dragR.dir=-1;}
   if(dragR.rpm<=0){dragR.rpm=0;dragR.dir=1;}
