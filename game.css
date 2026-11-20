@@ -717,6 +717,32 @@ body.phone-open #phone{transform:none;visibility:visible;transition:transform .2
 .ct-card.dim{opacity:.4}
 .ct-card.right{box-shadow:0 0 16px rgba(255,201,74,.8)}
 .ct-card.wrong{box-shadow:0 0 16px rgba(255,46,80,.8)}
+
+/* ---------- CASINO · BLACKJACK ---------- */
+#bj-table{padding:2px 0}
+.bj-head{display:flex;align-items:center;gap:12px;margin-bottom:8px;text-align:left}
+.bj-dealer{width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);box-shadow:0 0 14px rgba(255,201,74,.45)}
+.bj-dname{font-family:var(--disp);font-size:15px;letter-spacing:.08em;color:#efe6ff}
+.bj-rules{font-family:var(--led);font-size:13px;color:var(--teal);letter-spacing:.06em;margin-top:2px}
+.bj-lbl{display:flex;justify-content:center;gap:10px;align-items:center;font-family:var(--led);font-size:14px;letter-spacing:.25em;color:#c9b8e8;margin:8px 0 6px}
+.bj-val{font-family:var(--led);font-size:14px;color:var(--gold);border:1px solid rgba(255,201,74,.5);border-radius:8px;padding:0 8px;letter-spacing:.05em}
+.bj-row{display:flex;gap:8px;justify-content:center;min-height:106px;flex-wrap:wrap}
+#bj-dealer-cards .ct-card .face{background:linear-gradient(160deg,#3a0d33,#24101f);border-color:rgba(255,46,136,.7)}
+.bj-face{flex-direction:column}
+.bj-rank{font-family:var(--disp);font-size:19px;color:#ffe9b0}
+.bj-suit{font-size:26px;line-height:1;color:#e9defc}
+.bj-rank.red,.bj-suit.red{color:#ff5d7e}
+.bj-stake{font-family:var(--led);font-size:14px;letter-spacing:.08em;color:var(--teal);margin-top:10px}
+.bj-ctl{display:flex;gap:10px;justify-content:center;align-items:center;margin-top:12px;min-height:46px;flex-wrap:wrap}
+.bj-btn{font-family:var(--disp);font-size:14px;letter-spacing:.08em;color:#efe6ff;background:rgba(20,16,28,.85);
+  border:1px solid rgba(255,46,136,.5);border-radius:10px;padding:10px 22px}
+.bj-btn.gold{color:#1a0b2e;background:var(--gold);border-color:#ffe9b0}
+.bj-btn[disabled]{opacity:.5}
+@media(hover:hover){.bj-btn:hover{filter:brightness(1.15)}}
+.bj-result{font-family:var(--disp);font-size:18px;letter-spacing:.06em;color:#efe6ff}
+.bj-result.win{color:var(--gold);text-shadow:0 0 14px rgba(255,201,74,.6)}
+.bj-result.lose{color:#ff5d7e}
+.bj-result.push{color:var(--teal)}
 #ct-stats{font-family:var(--led);font-size:18px;text-align:center;margin:4px 0}
 #ct-help{font-size:13px;color:#9d8cc4;text-align:center}
 

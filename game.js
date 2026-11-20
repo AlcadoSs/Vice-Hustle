@@ -169,7 +169,7 @@ function defaultState(){
     unlocked:1, active:1, r:{}, up:{lawyer:0,scanner:0,washers:0},
     respect:0, respectGranted:0, spent:{empire:0,laundry:0,whisper:0,kick:0},
     vault:{}, lieuts:{}, lastSal:0, era:1,
-    radio:{st:0,muted:true}, stills:false, acts:{races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},
+    radio:{st:0,muted:true}, stills:false, acts:{races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0},
     queens:{}, inspiredUntil:0, nightCd:0, mile:{},
     msgs:[], unreadMsgs:0, msgBuff:null, deploy:{},
     heistReadyAt:0, frenzy:0, ts:Date.now(),
@@ -294,7 +294,7 @@ function load(){
     S.lieuts=d.lieuts||{}; S.vault=d.vault||{};
     S.radio=Object.assign({st:0,muted:true},d.radio);
     S.stills=!!d.stills;
-    S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},d.acts);
+    S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0},d.acts);
     S.queens=d.queens||{};
     S.mile=d.mile||{};
     S.msgs=Array.isArray(d.msgs)?d.msgs:[];
@@ -1712,6 +1712,7 @@ function showApp(name){
   else if(name==='legacy')renderLegacyApp();
   else if(name==='pulse'){renderPulseApp();markMsgsRead();}
   else if(name==='deploy')renderDeployApp();
+  else if(name==='casino')renderCasinoApp();
   else if(name==='settings')renderSettingsApp();
 }
 function openPhone(app){
@@ -1750,6 +1751,8 @@ function updateBadges(){
   set('queens', QUEENS.filter(q=>!S.queens[q.id]&&q.unlock(S)).length||null);
   const scd=S.acts.scd-now(), gcd=S.acts.gcd-now(), rcd=Math.max(scd,gcd);
   set('hustles', rcd>0?mmss(rcd/1000):null, true);
+  const ccd=S.acts.ccd-now();
+  set('casino', ccd>0?mmss(ccd/1000):null, true);
   const cleared=Object.keys(S.vault).length;
   set('vault', cleared?cleared+'/12':null);
   set('crew', LIEUTS.filter(l=>!S.lieuts[l.id]&&l.unlock(S)).length||null);
@@ -1842,15 +1845,14 @@ function renderHustlesApp(){
     };
   });
 }
-/* live cooldown ticker for the hustles page */
+/* live cooldown ticker for hustle/casino pills (whichever screen is open) */
+const CD_FIELDS={street:'scd',gator:'gcd',casino:'ccd'};
 function updateHustlesCd(){
-  const scr=$id('scr-hustles');
-  if(!scr||!scr.classList.contains('on'))return;
+  const scr=[...document.querySelectorAll('#phone .scr.on')].find(s=>s.querySelector('[data-cd]'));
+  if(!scr)return;
   scr.querySelectorAll('[data-cd]').forEach(el=>{
-    if(el.dataset.cd==='scratch')return;
-    const until=S.acts[el.dataset.cd==='street'?'scd':'gcd'];
-    const left=until-now();
-    const t=el.querySelector('.t');
+    const f=CD_FIELDS[el.dataset.cd]; if(!f)return;
+    const left=S.acts[f]-now(), t=el.querySelector('.t');
     if(left>0){el.classList.remove('ready');t.textContent=mmss(left/1000);}
     else if(!el.classList.contains('ready')){el.classList.add('ready');t.textContent='READY';}
   });
@@ -1859,6 +1861,140 @@ setInterval(updateHustlesCd,1000);
 function refreshHustlesIfOpen(){
   const scr=$id('scr-hustles');
   if(scr&&scr.classList.contains('on'))renderHustlesApp();
+}
+
+/* ---------------- CASINO · BLACKJACK ---------------- */
+const BJ_CD=45000;
+function bjStake(){ return Math.max(500,Math.round(totalIncome()*45)); }
+let bj=null, bjTO=0;
+const BJ_SUITS=['♠','♥','♦','♣'], BJ_RANKS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+function bjShoe(){ // fresh 6-deck shoe per round — correct odds, zero carry-over state
+  const s=[];
+  for(let k=0;k<6;k++)for(const su of BJ_SUITS)for(const r of BJ_RANKS)s.push({r,su});
+  for(let i=s.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[s[i],s[j]]=[s[j],s[i]];}
+  return s;
+}
+function bjVals(hand){ // [low, high] — one ace as 11 when that doesn't bust
+  let lo=0,aces=0;
+  for(const c of hand){ if(c.r==='A'){lo+=1;aces++;} else if('JQK'.includes(c.r))lo+=10; else lo+=+c.r; }
+  let hi=lo; if(aces>0&&lo+10<=21)hi=lo+10;
+  return [lo,hi];
+}
+const bjBest=h=>{const v=bjVals(h);return v[1];};
+function bjCard(c,down){
+  const red=c.su==='♥'||c.su==='♦';
+  return `<div class="ct-card${down?'':' up'}">
+    <div class="back">${CARD_BACK_SVG}</div>
+    <div class="face bj-face"><div class="bj-rank${red?' red':''}">${c.r}</div><div class="bj-suit${red?' red':''}">${c.su}</div></div>
+  </div>`;
+}
+function bjTableHTML(stake){
+  return `<div id="bj-table">
+    <div class="bj-head"><img class="bj-dealer" src="art/queens/camille.jpg" alt="">
+      <div><div class="bj-dname">CAMILLE DEALS</div>
+      <div class="bj-rules">DEALER STANDS ON 17 · BLACKJACK PAYS 3:2${has('camille')?' · HER TABLE PAYS ×1.05':''}</div></div></div>
+    <div class="bj-lbl">DEALER <span class="bj-val" id="bj-dval"></span></div>
+    <div class="bj-row" id="bj-dealer-cards"></div>
+    <div class="bj-lbl">YOU <span class="bj-val" id="bj-pval"></span></div>
+    <div class="bj-row" id="bj-player-cards"></div>
+    <div class="bj-stake">STAKE ${$$(stake)} · WIN PAYS 1:1 · DOUBLE ON ANY TWO</div>
+    <div class="bj-ctl" id="bj-ctl"></div>
+  </div>`;
+}
+function bjRender(){
+  if(!bj||!$id('bj-table'))return;
+  const [plo,phi]=bjVals(bj.p);
+  $id('bj-dealer-cards').innerHTML=bj.d.map((c,i)=>bjCard(c,!bj.reveal&&i===1)).join('');
+  $id('bj-player-cards').innerHTML=bj.p.map(c=>bjCard(c,false)).join('');
+  $id('bj-dval').textContent=bj.reveal?bjBest(bj.d):bjBest([bj.d[0]]);
+  $id('bj-pval').textContent=phi<=21&&plo!==phi?plo+'/'+phi:Math.max(plo,phi>21?plo:phi);
+  const ctl=$id('bj-ctl');
+  if(bj.over)return;
+  if(bj.busy){ctl.innerHTML='';return;}
+  ctl.innerHTML=`<button class="bj-btn" id="bj-hit">HIT</button>
+    <button class="bj-btn" id="bj-stand">STAND</button>
+    <button class="bj-btn" id="bj-dbl" ${bj.p.length===2&&S.dirty>=bj.stake?'':'disabled'}>DOUBLE</button>`;
+  $id('bj-hit').onclick=bjHit; $id('bj-stand').onclick=bjStand; $id('bj-dbl').onclick=bjDouble;
+}
+function bjHit(){
+  if(!bj||bj.over||bj.busy)return;
+  bj.p.push(bj.shoe.pop()); window.Radio&&Radio.sfx.blip(640); bjRender();
+  if(bjBest(bj.p)>=21)bjStand(); // 21 auto-stands, bust reveals and settles
+}
+function bjStand(){
+  if(!bj||bj.over||bj.busy)return;
+  bjDealerPlay();
+}
+function bjDouble(){
+  if(!bj||bj.over||bj.busy||bj.p.length!==2)return;
+  if(S.dirty<bj.stake){toast('NEED '+$$(bj.stake)+' TO DOUBLE');return;}
+  S.dirty-=bj.stake; bj.mult=2; bj.p.push(bj.shoe.pop());
+  window.Radio&&Radio.sfx.blip(700); bjRender();
+  bjDealerPlay();
+}
+function bjDealerPlay(){
+  if(!bj)return;
+  bj.busy=true; bj.reveal=true; bjRender();
+  const step=()=>{
+    if(!bj||bj.over)return;
+    if(bjBest(bj.d)<17){ bj.d.push(bj.shoe.pop()); bjRender(); window.Radio&&Radio.sfx.blip(560); bjTO=setTimeout(step,650); }
+    else bjSettle();
+  };
+  bjTO=setTimeout(step,450);
+}
+function bjSettle(){
+  if(!bj)return;
+  bj.over=true;
+  const p=bjBest(bj.p), d=bjBest(bj.d), staked=bj.stake*bj.mult, cam=has('camille')?1.05:1;
+  let pay=0, txt='HOUSE WINS', cls='lose';
+  if(p>21){ txt='BUST — HOUSE TAKES IT'; }
+  else if(bj.p.length===2&&p===21&&!(bj.d.length===2&&d===21)){ pay=staked*2.5*cam; txt='BLACKJACK! PAID 3:2'; cls='win'; }
+  else if(bj.d.length===2&&d===21){ txt='DEALER BLACKJACK'; }
+  else if(d>21){ pay=staked*2*cam; txt='DEALER BUSTS — YOU WIN'; cls='win'; }
+  else if(p>d){ pay=staked*2*cam; txt='YOU WIN'; cls='win'; }
+  else if(p===d){ pay=staked; txt='PUSH — STAKE RETURNED'; cls='push'; }
+  if(pay>0){ S.dirty+=pay; if(pay>staked){ S.acts.bjwins++; payToast(pay-staked); window.Radio&&Radio.sfx.chaChing(); } }
+  bjRender();
+  $id('bj-ctl').innerHTML=`<div class="bj-result ${cls}">${txt}${pay>staked?' — +'+$$(pay-staked):pay>0?'':' — −'+$$(staked)}</div>
+    <button class="bj-btn gold" id="bj-done">COLLECT</button>`;
+  $id('bj-done').onclick=()=>{ bj=null; clearTimeout(bjTO); closeModal(); checkQueens(); updateBadges(); refreshCasinoIfOpen(); };
+  updateBadges(); save();
+}
+function openBlackjack(){
+  if(now()<S.acts.ccd){toast('THE PIT BOSS SAYS WAIT — '+mmss((S.acts.ccd-now())/1000));return;}
+  const stake=bjStake();
+  if(S.dirty<stake){toast('NEED '+$$(stake)+' DIRTY AT THE TABLE');return;}
+  S.dirty-=stake; S.acts.bj++; S.acts.ccd=now()+BJ_CD;
+  bj={shoe:bjShoe(),p:[],d:[],stake,mult:1,reveal:false,over:false,busy:false};
+  bj.p.push(bj.shoe.pop(),bj.shoe.pop()); bj.d.push(bj.shoe.pop(),bj.shoe.pop());
+  modal('BLACKJACK — CAMILLE\'S TABLE',bjTableHTML(stake),[]);
+  bjRender();
+  window.Radio&&Radio.sfx.blip(880);
+  if(bjBest(bj.p)===21)bjDealerPlay(); // natural: straight to the reveal
+  save();
+}
+/* ---- CASINO app ---- */
+function renderCasinoApp(){
+  const ccd=S.acts.ccd-now(), stake=bjStake(), ready=ccd<=0;
+  $id('casino-sub').textContent=S.acts.bj+' HANDS · '+S.acts.bjwins+' WINS';
+  $id('casino-body').innerHTML=`
+    <div class="hs-card">
+      <button class="go" data-go="casino"></button>
+      <div class="hs-main">
+        <div class="hs-art"><img src="art/casino/blackjack.jpg" alt="" onerror="this.remove()"></div>
+        <div class="hs-info">
+          <div class="hs-name">BLACKJACK</div>
+          <div class="hs-d">Camille deals · stands on 17 · BJ pays 3:2${has('camille')?' · her table ×1.05':''}</div>
+          <div class="h-cd ${ready?'ready':''}" data-cd="casino"><span class="t">${ready?'READY':mmss(ccd/1000)}</span><span class="r">45s cooldown</span></div>
+        </div>
+      </div>
+      <div class="h-stats"><span class="h-stat">STAKE <b>${$$(stake)}</b></span><span class="h-stat">HANDS <b>${S.acts.bj}</b></span><span class="h-stat">WINS <b>${S.acts.bjwins}</b></span></div>
+    </div>`;
+  $id('casino-body').querySelector('[data-go]').onclick=()=>{ window.Radio&&Radio.sfx.tick(); openBlackjack(); };
+}
+function refreshCasinoIfOpen(){
+  const scr=$id('scr-casino');
+  if(scr&&scr.classList.contains('on'))renderCasinoApp();
 }
 
 /* ---- VAULT app · TAPE WALL ---- */
@@ -2153,7 +2289,7 @@ function boot(){
     get drill(){return drill},
     scheduleRaid, doRaid, openHeistPick, startHeist, strike, closeHeist, save,
     totalIncome, totalHeat, totalWash, doPrestige,
-    checkQueens, openStreetRace, openGatorRace, openScratch, bribeCost,
+    checkQueens, openStreetRace, openGatorRace, openScratch, openBlackjack, bribeCost,
     get Radio(){return window.Radio;},
   };
   if(reducedMotion()){ $id('title-video').hidden=true; $id('title-poster').hidden=false; }
