@@ -619,8 +619,8 @@ function wedgePath(cx,cy,r,deg,w){ // wedge centered at deg, width w°
 }
 function startDial(h,base){
   const rounds=h.risk===1?5:h.risk===2?6:7;
-  const dur=(3.4-h.risk*.5).toFixed(2);
-  Object.assign(base,{rounds,wedge:Math.random()*360,ww:48,started:false});
+  const dur=(2.5-h.risk*.37).toFixed(2);
+  Object.assign(base,{rounds,wedge:Math.random()*360,ww:40,started:false});
   $id('heist-play').innerHTML=`
     <div id="dial-wrap">
       <svg class="dial" viewBox="0 0 220 220">
@@ -653,7 +653,7 @@ function dialStrike(){
   let diff=Math.abs(dialAngle()-d.wedge); if(diff>180)diff=360-diff;
   if(diff<=d.ww/2){
     d.hits++;
-    d.wedge=Math.random()*360; d.ww=Math.max(30,d.ww-2.5);
+    d.wedge=Math.random()*360; d.ww=Math.max(24,d.ww-2.5);
     $id('dial-wedge').setAttribute('d',wedgePath(110,110,88,d.wedge,d.ww));
     wrap.classList.remove('hitflash'); void wrap.offsetWidth; wrap.classList.add('hitflash');
     window.Radio&&Radio.sfx.blip(880+d.hits*40);
