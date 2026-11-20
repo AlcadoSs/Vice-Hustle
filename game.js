@@ -205,7 +205,12 @@ function isPaused(){
 let toastTO=0;
 function toast(msg){
   const t=$id('toast'); t.textContent=msg; t.hidden=false;
-  clearTimeout(toastTO); toastTO=setTimeout(()=>t.hidden=true,2600);
+  clearTimeout(toastTO); toastTO=setTimeout(()=>t.hidden=true,2400);
+}
+function payToast(x){
+  toast('+'+$$(x)+' DIRTY');
+  const el=$id('led-dirty');
+  if(el){el.classList.remove('pulse');void el.offsetWidth;el.classList.add('pulse');}
 }
 
 /* ---------------- GAME MATH ---------------- */
@@ -919,6 +924,8 @@ function openStreetRace(){
         clearInterval(seq);tree[3].classList.add('green');window.Radio&&Radio.sfx.blip(880);
         dragR.running=true;dragR.last=performance.now();dragR.stage='run';
         $id('race-prompt').textContent='SHIFT IN THE TEAL BAND — TAP / SPACE';
+        $id('tach').classList.add('running');
+        setTachSpeed(dragR);
         dragRAF=requestAnimationFrame(dragFrame);
         // watchdog: rAF can be suspended (background tabs / idle renderers) — keep the drag alive
         dragR.watch=setInterval(()=>{
@@ -933,16 +940,25 @@ function openStreetRace(){
   function dragKey(e){ if(e.code==='Space'&&dragR&&!dragR.over&&dragR.stage==='run'){e.preventDefault();shiftDrag();} }
   dragR.cleanup=()=>{window.removeEventListener('keydown',dragKey);dragR.clearSeq&&dragR.clearSeq();clearTimeout(treeTO);cancelAnimationFrame(dragRAF);if(dragR.watch)clearInterval(dragR.watch);};
 }
+function needleRpm(){
+  const m=getComputedStyle($id('needle')).transform;
+  if(!m||m==='none')return 0;
+  const a=m.match(/matrix\(([-\d.e]+),\s*([-\d.e]+)/);
+  if(!a)return 0;
+  const deg=Math.atan2(parseFloat(a[2]),parseFloat(a[1]))*180/Math.PI;
+  return Math.max(0,Math.min(100,(deg+90)/1.8));
+}
+function setTachSpeed(r){
+  const dur=200/(r.rate*(1+(r.gear-1)*.28)*100);
+  $id('needle').style.animationDuration=dur.toFixed(3)+'s';
+}
 function dragFrame(ts){
   if(!dragR||dragR.over)return;
   // wall-clock dt (2s cap) so the drag runs at TRUE real-time pace even in throttled renderers
   const dt=Math.min(2,Math.max(0,(ts-dragR.last)/1000)); dragR.last=ts;
-  dragR.rpm+=dragR.dir*dragR.rate*(1+ (dragR.gear-1)*.28)*dt*100;
-  if(dragR.rpm>=100){dragR.rpm=100;dragR.dir=-1;}
-  if(dragR.rpm<=0){dragR.rpm=0;dragR.dir=1;}
-  $id('needle').setAttribute('transform',`rotate(${(dragR.rpm*1.8-90).toFixed(1)} 115 115)`);
-  // side-view stage: parallax scroll + car positions
+  // needle motion is a compositor CSS animation (immune to JS throttling); rpm read live at shifts
   const r=dragR;
+  r.rpm=needleRpm();
   r.t=(r.t||0)+dt;
   r.shown=r.shown===undefined?0:r.shown+(r.mph-r.shown)*Math.min(1,dt*4);
   const st=$id('sv-stage');
@@ -959,14 +975,16 @@ function dragFrame(ts){
 }
 function shiftDrag(){
   const r=dragR; if(!r||r.over)return;
+  const rpm=needleRpm(); r.rpm=rpm;
   let gain,word,cls;
-  if(r.rpm>=82&&r.rpm<96){gain=28;word='PERFECT SHIFT!';cls='teal';}
-  else if(r.rpm>=58){gain=19;word='GOOD';cls='';}
+  if(rpm>=82&&rpm<96){gain=28;word='PERFECT SHIFT!';cls='teal';}
+  else if(rpm>=58){gain=19;word='GOOD';cls='';}
   else{gain=6;word='BOGGED…';cls='heat-up';}
   r.mph+=gain; r.rate+=.1;
   $id('race-led').textContent=Math.round(r.mph)+' MPH';
   if(gain===28){const st=$id('sv-stage');if(st){st.classList.remove('boost');void st.offsetWidth;st.classList.add('boost');}}
   $id('race-prompt').innerHTML=`<span class="${cls}">${word}</span>`;
+  setTachSpeed({...r,gear:r.gear+1});
   window.Radio&&Radio.sfx.blip(380+r.gear*120);
   const leds=$id('gear-leds').children;
   if(r.gear>=5){endDrag();return;}
@@ -977,7 +995,7 @@ function shiftDrag(){
 function endDrag(){
   const r=dragR;r.over=true;r.cleanup&&r.cleanup();
   const win=r.mph>=100, pay=r.stake*2*(has('roxy')?2:1);
-  if(win){S.acts.swins++;S.dirty+=pay;}
+  if(win){S.acts.swins++;S.dirty+=pay;payToast(pay);}
   const st=$id('sv-stage');
   if(st){
     if(win){
@@ -1068,7 +1086,7 @@ function runSwamp(pick,stake){
       clearInterval(swampTO);
       const g=GATORS[done], won=pick===done;
       const pay=won?stake*g.odds*(has('yara')?1.5:1):0;
-      if(won){S.dirty+=pay;S.acts.gwins++;}
+      if(won){S.dirty+=pay;S.acts.gwins++;payToast(pay);}
       window.Radio&&(won?Radio.sfx.fanfare():Radio.sfx.bust());
       setTimeout(()=>modal('GATOR RACES · RESULT', won
         ? `<p class="led-line" style="font-size:26px;color:var(--gold)">${g.name.toUpperCase()} TAKES THE SWAMP!</p>
@@ -1166,6 +1184,7 @@ function finishTicket(){
     if(pay>0){
       S.dirty+=pay;
       window.Radio&&Radio.sfx.chaChing();
+      payToast(pay);
       if(mult>=30){confettiBurst();window.Radio&&Radio.sfx.fanfare();}
       // count-up
       const t0=performance.now();

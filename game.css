@@ -500,7 +500,12 @@ body.phone-open #phone{transform:none;visibility:visible;transition:transform .2
 #tach .band{fill:none;stroke:var(--teal);stroke-width:9;opacity:.85;filter:drop-shadow(0 0 6px rgba(22,224,189,.8))}
 #tach .arc{fill:none;stroke:#3a2b55;stroke-width:9}
 #tach .red{fill:none;stroke:#ff2e55;stroke-width:9;opacity:.7}
-#needle{transform-origin:115px 115px;transition:transform .05s linear}
+#needle{transform-box:view-box;transform-origin:115px 115px;
+  animation:tachsweep 3.64s linear infinite;animation-play-state:paused}
+@keyframes tachsweep{0%{transform:rotate(-90deg)}50%{transform:rotate(90deg)}100%{transform:rotate(-90deg)}}
+#tach.running #needle{animation-play-state:running}
+#led-dirty.pulse{animation:paypulse .9s ease-out 2}
+@keyframes paypulse{30%{text-shadow:0 0 26px rgba(255,201,74,1);color:var(--gold)}}
 #gear-leds{display:flex;gap:8px;justify-content:center;margin:8px 0}
 #gear-leds i{width:26px;height:12px;border-radius:6px;background:#2a1b46;border:1px solid rgba(88,247,255,.35);font-family:var(--led);
   font-size:11px;color:#6e5f95;display:flex;align-items:center;justify-content:center}
