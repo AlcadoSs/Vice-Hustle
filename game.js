@@ -924,8 +924,8 @@ function ctRound(){
         [slots[a],slots[b]]=[slots[b],slots[a]];
         window.Radio&&Radio.sfx.tick();
         swaps++;
-        if(swaps<seqCount)drillTO=setTimeout(doSwap,440); // wait out the animation — no mid-flight pileups
-        else if(dblCount>0)drillTO=setTimeout(doDoubleSwap,600);
+        if(swaps<seqCount)drillTO=setTimeout(doSwap,480); // wait out the animation — no mid-flight pileups
+        else if(dblCount>0)drillTO=setTimeout(doDoubleSwap,620);
         else finishShuffle();
       };
       const doDoubleSwap=()=>{
@@ -939,7 +939,7 @@ function ctRound(){
         [slots[c2],slots[e]]=[slots[e],slots[c2]];
         window.Radio&&Radio.sfx.blip(520);
         swaps++;
-        if(swaps<seqCount+dblCount)drillTO=setTimeout(doDoubleSwap,650);
+        if(swaps<seqCount+dblCount)drillTO=setTimeout(doDoubleSwap,680);
         else finishShuffle();
       };
       const finishShuffle=()=>{
@@ -953,12 +953,19 @@ function ctRound(){
         const w=ca.offsetWidth+12;
         const dir=sl[i]<sl[j]?1:-1;
         const dist=w*Math.abs(sl[j]-sl[i]);
-        ca.style.transform=`translateX(${dir*dist}px)`;
-        cb.style.transform=`translateX(${-dir*dist}px)`;
+        // dealer feel: one card arcs OVER (high lift, tilt), the other scoots UNDER (low arc, counter-tilt)
+        ctMove(ca, dir*dist, 6, -44);
+        ctMove(cb, -dir*dist, -6, -16);
         drillTO=setTimeout(()=>{
-          ca.style.transform=''; cb.style.transform='';
+          [ca,cb].forEach(c=>{ c.classList.remove('mv'); c.style.removeProperty('--d'); c.style.removeProperty('--tilt'); c.style.removeProperty('--lift'); });
           tbl.innerHTML=''; slots.forEach(s=>tbl.appendChild(cards[s]));
-        },360);
+        },420);
+      }
+      function ctMove(el,d,tilt,lift){
+        el.style.setProperty('--d',d+'px');
+        el.style.setProperty('--tilt',tilt+'deg');
+        el.style.setProperty('--lift',lift+'px');
+        el.classList.add('mv');
       }
       drillTO=setTimeout(doSwap,450);
     },1000);
