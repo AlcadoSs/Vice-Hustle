@@ -842,6 +842,31 @@ $id('btn-play')&&0; // (menus now live in the Vice Phone)
 /* ----- STREET RACE · NIGHT DRAG ----- */
 let dragR=null, dragRAF=0;
 const CAR_SVG=(color,glow)=>`<svg viewBox="0 0 40 18" style="width:44px;height:20px"><path d="M3 13 L8 6 L20 4 L30 6 L38 10 L37 14 L30 13 L27 16 L22 13 L14 13 L11 16 L6 13 Z" fill="${color}" stroke="${glow}" stroke-width="1"/><circle cx="12" cy="6.5" r="2.6" fill="#0d0718" stroke="${glow}"/><circle cx="24" cy="5.5" r="2.6" fill="#0d0718" stroke="${glow}"/></svg>`;
+const CAR_SIDE=(body,edge)=>'data:image/svg+xml,'+encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 44"><path d="M4 32 L14 20 L38 12 L74 10 L100 16 L116 26 L114 34 L100 32 L92 38 L84 32 L40 32 L32 38 L24 32 Z" fill="${body}" stroke="${edge}" stroke-width="2"/><circle cx="30" cy="34" r="9" fill="#0d0718" stroke="${edge}" stroke-width="2"/><circle cx="92" cy="34" r="9" fill="#0d0718" stroke="${edge}" stroke-width="2"/><path d="M42 14 L66 12 L66 20 L42 21 Z" fill="#0d0718" opacity=".85"/></svg>`);
+const carSprites={};
+function keyedCar(src,cb){
+  if(carSprites[src]!==undefined){cb(carSprites[src]);return;}
+  const img=new Image();
+  img.onload=()=>{
+    let out=null;
+    try{
+      const c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+      const x=c.getContext('2d');x.drawImage(img,0,0);
+      const d=x.getImageData(0,0,c.width,c.height),p=d.data;
+      for(let i=0;i<p.length;i+=4){
+        const r=p[i],g=p[i+1],b=p[i+2];
+        if(g>110&&g>r*1.3&&g>b*1.3)p[i+3]=0;
+        else if(g>80&&g>r*1.12&&g>b*1.12)p[i+3]=Math.min(p[i+3],150);
+      }
+      x.putImageData(d,0,0);
+      out=c.toDataURL();
+    }catch(e){out=null;}
+    carSprites[src]=out;cb(out);
+  };
+  img.onerror=()=>{carSprites[src]=null;cb(null);};
+  img.src=src;
+}
 function openStreetRace(){
   if(now()<S.acts.scd){toast('THE STRIP NEEDS A BREATH — '+mmss((S.acts.scd-now())/1000));return;}
   const stake=actStake();
@@ -858,13 +883,22 @@ function openStreetRace(){
        <circle cx="115" cy="115" r="6" fill="#ffd977"/>
      </svg></div>
      <div id="gear-leds">${[1,2,3,4,5].map(g=>`<i class="${g===1?'cur':''}">${g}</i>`).join('')}</div>
-     <div id="race-strip">
-       <div class="lane l1"></div><div class="lane l2"></div><div class="rivalline" title="RIVAL PACE — 100 MPH"></div>
-       <span id="rival-car" class="rcar">${CAR_SVG('#7a2f55','#ff5d7a')}</span>
-       <span id="you-car" class="rcar">${CAR_SVG('#2a6f68','#16e0bd')}</span>
+     <div id="sv-stage">
+       <div class="skyline"></div><div class="palms"></div>
+       <div class="road"><div class="sv-dashes"></div></div>
+       <span class="sv-board" style="left:14%">60FT</span>
+       <span class="sv-board" style="left:38%">330FT</span>
+       <span class="sv-board" style="left:54%">1/8 MI</span>
+       <div class="sv-fin"></div>
+       <span id="sv-tag">FIRST TO THE STRIP · 100 MPH TAKES IT</span>
+       <img id="rival-sv" class="sv-car" alt="">
+       <img id="you-sv" class="sv-car" alt="">
      </div>
      <div id="race-led">0 MPH</div><div id="race-prompt">WATCH THE TREE…</div>`,
     [{label:'BAIL',cls:'btn-ghost',fn:()=>{dragR=null;cancelAnimationFrame(dragRAF);closeModal();}}]);
+  // painted sprites, chroma-keyed off the green screen; drawn SVG fallback
+  keyedCar('art/cars/player.jpg',u=>{const el=$id('you-sv');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
+  keyedCar('art/cars/rival.jpg',u=>{const el=$id('rival-sv');if(el)el.src=u||CAR_SIDE('#7a2f55','#ff5d7a');});
   dragR={rpm:0,dir:1,rate:.55,gear:1,mph:0,over:false,last:0,running:false,stage:'tree'};
   const tree=$id('tree').children;
   const modalBox=$id('modal-body');
@@ -877,6 +911,10 @@ function openStreetRace(){
         dragR.running=true;dragR.last=performance.now();dragR.stage='run';
         $id('race-prompt').textContent='SHIFT IN THE TEAL BAND — TAP / SPACE';
         dragRAF=requestAnimationFrame(dragFrame);
+        // watchdog: rAF can be suspended (background tabs / idle renderers) — keep the drag alive
+        dragR.watch=setInterval(()=>{
+          if(dragR&&!dragR.over&&performance.now()-dragR.last>200)dragFrame(performance.now());
+        },120);
       }
     },520);
     dragR.clearSeq=()=>clearInterval(seq);
@@ -884,15 +922,30 @@ function openStreetRace(){
   modalBox.onpointerdown=e=>{ if(dragR&&dragR.stage==='run')shiftDrag(); };
   window.addEventListener('keydown',dragKey,{once:false});
   function dragKey(e){ if(e.code==='Space'&&dragR&&!dragR.over&&dragR.stage==='run'){e.preventDefault();shiftDrag();} }
-  dragR.cleanup=()=>{window.removeEventListener('keydown',dragKey);dragR.clearSeq&&dragR.clearSeq();clearTimeout(treeTO);cancelAnimationFrame(dragRAF);};
+  dragR.cleanup=()=>{window.removeEventListener('keydown',dragKey);dragR.clearSeq&&dragR.clearSeq();clearTimeout(treeTO);cancelAnimationFrame(dragRAF);if(dragR.watch)clearInterval(dragR.watch);};
 }
 function dragFrame(ts){
   if(!dragR||dragR.over)return;
-  const dt=Math.min(.05,(ts-dragR.last)/1000); dragR.last=ts;
+  // generous dt cap: keeps the drag near real-time even in throttled/background renderers
+  const dt=Math.min(.5,Math.max(0,(ts-dragR.last)/1000)); dragR.last=ts;
   dragR.rpm+=dragR.dir*dragR.rate*(1+ (dragR.gear-1)*.28)*dt*100;
   if(dragR.rpm>=100){dragR.rpm=100;dragR.dir=-1;}
   if(dragR.rpm<=0){dragR.rpm=0;dragR.dir=1;}
   $id('needle').setAttribute('transform',`rotate(${(dragR.rpm*1.8-90).toFixed(1)} 115 115)`);
+  // side-view stage: parallax scroll + car positions
+  const r=dragR;
+  r.t=(r.t||0)+dt;
+  r.shown=r.shown===undefined?0:r.shown+(r.mph-r.shown)*Math.min(1,dt*4);
+  const st=$id('sv-stage');
+  if(st){
+    const dashes=st.querySelector('.sv-dashes'),palms=st.querySelector('.palms'),sky=st.querySelector('.skyline');
+    if(dashes)dashes.style.backgroundPosition=(-(r.shown*3.4)%54)+'px 0';
+    if(palms)palms.style.backgroundPosition=(-(r.shown*1.9)%110)+'px 0';
+    if(sky)sky.style.backgroundPosition=(-(r.shown*.7)%110)+'px 0';
+    const you=$id('you-sv'),riv=$id('rival-sv');
+    if(you)you.style.left=(8+Math.min(1,r.shown/140)*89)+'%';
+    if(riv)riv.style.left=(8+Math.min(.96,(r.t/8.5)*.76)*89)+'%';
+  }
   dragRAF=requestAnimationFrame(dragFrame);
 }
 function shiftDrag(){
@@ -903,7 +956,7 @@ function shiftDrag(){
   else{gain=6;word='BOGGED…';cls='heat-up';}
   r.mph+=gain; r.rate+=.1;
   $id('race-led').textContent=Math.round(r.mph)+' MPH';
-  $id('you-car').style.left=(4+Math.min(1,r.mph/140)*92)+'%';
+  if(gain===28){const st=$id('sv-stage');if(st){st.classList.remove('boost');void st.offsetWidth;st.classList.add('boost');}}
   $id('race-prompt').innerHTML=`<span class="${cls}">${word}</span>`;
   window.Radio&&Radio.sfx.blip(380+r.gear*120);
   const leds=$id('gear-leds').children;
@@ -915,8 +968,18 @@ function shiftDrag(){
 function endDrag(){
   const r=dragR;r.over=true;r.cleanup&&r.cleanup();
   const win=r.mph>=100, pay=r.stake*2*(has('roxy')?2:1);
-  if(win){const s=$id('race-strip');s&&s.classList.add('flashwin');S.acts.swins++;S.dirty+=pay;}
-  else{const s=$id('race-strip');s&&s.classList.add('shake');}
+  if(win){S.acts.swins++;S.dirty+=pay;}
+  const st=$id('sv-stage');
+  if(st){
+    if(win){
+      st.classList.add('flashwin');
+      const y=$id('you-sv');if(y)y.style.left='80%';
+      const rv=$id('rival-sv');if(rv)rv.style.left=(8+Math.min(.96,(r.t/8.5)*.76)*89)+'%';
+    }else{
+      st.classList.add('shake');
+      const rv=$id('rival-sv');if(rv)rv.style.left='82%';
+    }
+  }
   window.Radio&&(win?Radio.sfx.fanfare():Radio.sfx.bust());
   setTimeout(()=>{
     modal('STREET RACE · RESULT', win
