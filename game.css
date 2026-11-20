@@ -768,24 +768,15 @@ body.phone-open #phone{transform:none;visibility:visible;transition:transform .2
 .ct-card.right{box-shadow:0 0 16px rgba(255,201,74,.8)}
 .ct-card.wrong{box-shadow:0 0 16px rgba(255,46,80,.8)}
 
-/* con shuffle: Monte-dealer motion — arcing flyer with shadow tracking + landing settle,
-   and low slides for the cards closing the gap (compositor keyframes throughout) */
-.ct-card.mv{z-index:3;animation:ctArc .46s cubic-bezier(.3,.1,.2,1) both}
+/* con shuffle: dealer-style arc — card lifts, tilts, scales, settles (compositor keyframes) */
+.ct-card.mv{z-index:3;filter:drop-shadow(0 18px 16px rgba(0,0,0,.6));
+  animation:ctArc .4s cubic-bezier(.35,.15,.25,1) both}
 @keyframes ctArc{
-  0%{transform:translateX(0) translateY(0) rotate(0) scale(1);filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
-  40%{transform:translateX(calc(var(--d,0px)*.5)) translateY(var(--lift,-84px)) rotate(var(--tilt,5deg)) scale(1.15);
-      filter:drop-shadow(0 30px 20px rgba(0,0,0,.78)) drop-shadow(0 0 26px rgba(255,201,74,.34))}
-  88%{transform:translateX(calc(var(--d,0px) + var(--ov,4px))) translateY(2px) rotate(calc(var(--tilt,5deg)*-.25)) scale(1.01);
-      filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}
-  100%{transform:translateX(var(--d,0px)) translateY(0) rotate(0) scale(1);filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
+  0%{transform:translateX(0) translateY(0) rotate(0) scale(1)}
+  45%{transform:translateX(calc(var(--d,0px)*.5)) translateY(var(--lift,-30px)) rotate(var(--tilt,5deg)) scale(1.07)}
+  100%{transform:translateX(var(--d,0px)) translateY(0) rotate(0) scale(1)}
 }
-.ct-card.slide{z-index:2;animation:ctSlide .34s cubic-bezier(.3,.15,.25,1) both}
-@keyframes ctSlide{
-  0%{transform:translateX(0) translateY(0)}
-  50%{transform:translateX(calc(var(--d,0px)*.5)) translateY(-16px)}
-  100%{transform:translateX(var(--d,0px)) translateY(0)}
-}
-@media (prefers-reduced-motion:reduce){.ct-card.mv,.ct-card.slide{animation:none}}
+@media (prefers-reduced-motion:reduce){.ct-card.mv{animation:none}}
 
 /* ---------- CASINO · BLACKJACK ---------- */
 #bj-table{padding:2px 0}
