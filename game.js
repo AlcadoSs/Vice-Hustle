@@ -1081,30 +1081,31 @@ function renderQueensApp(){
 function renderHustlesApp(){
   $id('hustles-sub').textContent=S.acts.races+' RUNS · '+(S.acts.swins+S.acts.gwins)+' WINS';
   const cards=[
-    {id:'street',ok:S.unlocked>=2,lockTxt:'D2',name:'STREET RACES',
+    {id:'street',art:'art/hustles/street.jpg',ok:S.unlocked>=2,lock:'DOWNTOWN',name:'STREET RACES',
      d:`Five gears. Nail the shift. ×2${has('roxy')?' · ROXY ×2':''}`,
      cd:S.acts.scd-now(),cdTxt:'60s between runs',
-     stake:actStake(),stats:[['STAKE',$$(actStake())],['WINS',S.acts.swins]]},
-    {id:'gator',ok:S.unlocked>=5,lockTxt:'D5',name:'GATOR RACES',
-     d:`Four gators, one swamp. ×1.8 to ×7${has('yara')?' · YARA ×1.5':''}`,
+     stats:[['STAKE',$$(actStake())],['WINS',S.acts.swins],['RUNS',S.acts.races]]},
+    {id:'gator',art:'art/hustles/gator.jpg',ok:S.unlocked>=5,lock:'SWAMP GLADES',name:'GATOR RACES',
+     d:`Four gators, one swamp. ×1.8–×7${has('yara')?' · YARA ×1.5':''}`,
      cd:S.acts.gcd-now(),cdTxt:'60s between bets',
-     stake:gatorStake(),stats:[['STAKE',$$(gatorStake())],['WINS',S.acts.gwins]]},
-    {id:'scratch',ok:true,lockTxt:'',name:'SCRATCH CARDS',
+     stats:[['STAKE',$$(gatorStake())],['WINS',S.acts.gwins]]},
+    {id:'scratch',art:'art/hustles/scratch.jpg',ok:true,lock:'',name:'SCRATCH CARDS',
      d:'4 of a kind ×2.5 · 5+ ×30',cd:-1,cdTxt:'no cooldown',
-     stake:Math.max(500,Math.round(totalIncome()*30)),stats:[['CARD',$$(Math.max(500,Math.round(totalIncome()*30)))],['CARDS',S.acts.scratch]]},
+     stats:[['CARD',$$(Math.max(500,Math.round(totalIncome()*30)))],['CARDS',S.acts.scratch]]},
   ];
   let html='';
   for(const c of cards){
     const ready=c.ok&&c.cd<=0;
-    html+=`<div class="h-card">
-      <button class="go" data-go="${c.id}" ${c.ok?'':'disabled'} title="${c.ok?'':'Unlocks at '+c.lockTxt}"></button>
-      <div class="h-top">
-        <svg class="h-ico ic" viewBox="0 0 24 24">${
-          c.id==='street'?'<path d="M4 17h16M6 17l-1-7 4 3 3-6 3 6 4-3-1 7"/><path d="M12 7V4M10.5 5.5L12 4l1.5 1.5"/>'
-          :c.id==='gator'?'<path d="M3 14c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M5 10.5C6.5 8.5 8 8.5 9.5 10.5"/><path d="M14.5 10.5C16 8.5 17.5 8.5 19 10.5"/><path d="M7 19c1.5-1.5 3-1.5 4.5 0s3 1.5 4.5 0"/>'
-          :'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M8 5v4M16 5v4"/><path d="M10.5 15.5l1-2 1.5 2.5 1-1.5"/>'}</svg>
-        <div><div class="h-name">${c.name}</div><div class="h-d">${c.d}${c.ok?'':' · 🔒 unlocks '+c.lockTxt}</div></div>
-        <div class="h-cd ${ready?'ready':''}"><div class="t">${c.ok?(c.cd>0?mmss(c.cd/1000):'READY'):c.lockTxt}</div><div class="r">${c.cdTxt}</div></div>
+    html+=`<div class="hs-card ${c.ok?'':'locked'}">
+      <button class="go" data-go="${c.id}" ${c.ok?'':'disabled'}></button>
+      <div class="hs-main">
+        <div class="hs-art"><img src="${c.art}" alt="" onerror="this.remove()">
+          ${c.ok?'':`<span class="q-lock">${SVGS.lock}</span>`}</div>
+        <div class="hs-info">
+          <div class="hs-name">${c.name}</div>
+          <div class="hs-d">${c.d}</div>
+          <div class="h-cd ${ready?'ready':''}"><span class="t">${c.ok?(c.cd>0?mmss(c.cd/1000):'READY'):'LOCKED'}</span><span class="r">${c.ok?c.cdTxt:c.lock}</span></div>
+        </div>
       </div>
       <div class="h-stats">${c.stats.map(s=>`<span class="h-stat">${s[0]} <b>${s[1]}</b></span>`).join('')}</div>
     </div>`;
