@@ -199,7 +199,8 @@ const $$=n=>'$'+fmt(n);
 const mmss=s=>{s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
 
 function isPaused(){
-  return !$id('modal').hidden || !$id('heist-modal').hidden || !$id('raid-overlay').hidden;
+  return !$id('modal').hidden || !$id('heist-modal').hidden || !$id('raid-overlay').hidden
+    || document.body.classList.contains('phone-open');
 }
 let toastTO=0;
 function toast(msg){
@@ -740,100 +741,13 @@ window.addEventListener('keydown',e=>{
 });
 
 /* ---------------- THE VAULT ---------------- */
-$id('btn-vault').onclick=()=>{
-  let html='<div class="stack">';
-  for(const h of HEISTS){
-    const cleared=!!S.vault[h.id];
-    html+=`<div class="up-row"><div class="p-icon">${cleared?'🏆':'🔒'}</div>
-      <div class="up-main"><div class="up-name">${h.name} <span class="tier">${KIND_TXT[h.kind]}</span></div>
-      <div class="up-desc">${districtOf(h.d).name} · ${RISK_TXT[h.risk]}</div></div>
-      ${cleared?(h.vid?`<button class="up-buy" data-vid="${h.vid}" data-n="${h.name}">WATCH</button>`:`<span class="status-locked">STILLS ONLY</span>`):''}
-    </div>`;
-  }
-  html+='</div>';
-  modal('THE VAULT',html,[{label:'CLOSE',cls:'btn-primary',fn:closeModal}]);
-  $id('modal-body').querySelectorAll('[data-vid]').forEach(b=>{
-    b.onclick=()=>{
-      modal(b.dataset.n,
-        `<video src="${b.dataset.vid}" controls autoplay muted loop playsinline></video>
-         <p class="led-line" style="margin-top:10px">First-clear cinematic.</p>`,
-        [{label:'BACK',cls:'btn-ghost',fn:()=>{$id('btn-vault').onclick();}}]);
-    };
-  });
-};
+$id('btn-vault')&&0; // (menus now live in the Vice Phone)
 
 /* ---------------- CREW ---------------- */
-$id('btn-crew').onclick=()=>{
-  let html='<div class="stack">';
-  for(const l of LIEUTS){
-    const hired=has(l.id);
-    html+=`<div class="up-row" style="${hired?'':'opacity:.65'}">
-      <div class="p-icon">${l.em}<img src="${l.pic}" alt="" onerror="this.remove()"></div>
-      <div class="up-main"><div class="up-name">${l.name} <span class="tier">${l.role}</span></div>
-      <div class="up-desc">${l.fx}</div></div>
-      ${hired?'<span class="status-hired">HIRED</span>':`<span class="status-locked">🔒 ${l.hint}</span>`}
-    </div>`;
-  }
-  html+='</div>';
-  modal('THE CREW',html,[{label:'CLOSE',cls:'btn-primary',fn:closeModal}]);
-};
+$id('btn-crew')&&0; // (menus now live in the Vice Phone)
 
 /* ---------------- LEGACY / PRESTIGE ---------------- */
-$id('btn-legacy').onclick=()=>{
-  const gain=respectGain(), can=S.unlocked>=3;
-  let html=`
-    <p>The Big Score: cash out the whole empire, retire to the Keys, and come back bigger. Everything resets — except your legend.</p>
-    <p class="led-line">RESPECT ON RETIRE: +${fmt(gain)}${can?'':' (UNLOCK DOWNTOWN FIRST)'}</p>
-    <div class="stack">`;
-  for(const t of LEGACY){
-    const lvl=S.spent[t.id], maxed=lvl>=t.max, cost=LEGACY_COSTS[lvl];
-    html+=`<div class="up-row"><div class="p-icon">${t.icon}</div>
-      <div class="up-main"><div class="up-name">${t.name} <span class="tier">LV ${lvl}/${t.max}</span></div>
-      <div class="up-desc">${t.desc}</div></div>
-      <button class="up-buy" data-l="${t.id}" ${maxed||S.respect<cost?'disabled':''}>${maxed?'MAX':cost+' RP'}</button>
-    </div>`;
-  }
-  html+=`</div>
-    <div class="up-row"><div class="p-icon">📼</div>
-      <div class="up-main"><div class="up-name">ERA II — "PRESENT DAY" ${S.era>=2?'<span class="tier">LIVE</span>':''}</div>
-      <div class="up-desc">A new skyline, a new decade, ×5 income everywhere.${S.era>=2?' You are living in it.':''}</div></div>
-      ${S.era>=2?'<span class="status-hired">ACTIVE</span>'
-        :`<button class="up-buy" data-era="2" ${S.respect<100?'disabled':''}>${S.respect<100?'🔒 100 RP':'ENTER · 100 RP'}</button>`}</div>
-    <div class="up-row"><div class="p-icon">🛸</div>
-      <div class="up-main"><div class="up-name">ERA III — "2049" <span class="tier">SOON</span></div>
-      <div class="up-desc">Chrome horizon. ×25 income. (400 RP — arriving next milestone.)</div></div>
-      <span class="status-locked">🔒 400 RP</span></div>
-    <p class="panel-title" style="font-size:16px;margin:14px 0 4px">MILESTONES</p><div class="stack">`;
-  for(const m of MILESTONES){
-    const done=!!S.mile[m.id];
-    html+=`<div class="up-row" style="${done?'':'opacity:.55'}"><div class="p-icon">${done?'★':'☆'}</div>
-      <div class="up-main"><div class="up-name">${m.name}</div></div>
-      ${done?'<span class="status-hired">EARNED</span>':''}</div>`;
-  }
-  html+='</div>';
-  modal('LEGACY · THE BIG SCORE',html,[
-    {label:`RETIRE (+${fmt(gain)} RP)`,cls:'btn-primary',fn:()=>{ if(can&&gain>0)confirmPrestige(gain); else toast(can?'NOTHING TO RETIRE ON YET':'UNLOCK DOWNTOWN FIRST'); }},
-    {label:'CLOSE',cls:'btn-ghost',fn:closeModal}]);
-  $id('modal-body').querySelectorAll('[data-l]').forEach(b=>{
-    b.onclick=()=>{
-      const id=b.dataset.l, t=LEGACY.find(x=>x.id===id), lvl=S.spent[id];
-      if(lvl>=t.max)return;
-      const cost=LEGACY_COSTS[lvl];
-      if(S.respect<cost){toast('NOT ENOUGH RESPECT');return;}
-      S.respect-=cost; S.spent[id]++; checkLieuts(); $id('btn-legacy').onclick();
-    };
-  });
-  const eraBtn=$id('modal-body').querySelector('[data-era]');
-  if(eraBtn)eraBtn.onclick=()=>{
-    if(S.era>=2||S.respect<100)return;
-    S.respect-=100; S.era=2; applyDistrict(); updateLedger(); save();
-    window.Radio&&Radio.sfx.fanfare();
-    modal('ERA II — PRESENT DAY',
-      `<p>The neon faded. The towers grew glass. Palmetto City, present day.</p>
-       <p class="led-line">INCOME ×5 EVERYWHERE · NEW SKYLINE</p>`,
-      [{label:'WELCOME TO TODAY',cls:'btn-primary',fn:closeModal}]);
-  };
-};
+$id('btn-legacy')&&0; // (menus now live in the Vice Phone)
 function confirmPrestige(gain){
   modal('THE BIG SCORE?',
     `<img class="prestige-art" src="art/keyart/prestige.jpg" alt="" onerror="this.remove()">
@@ -875,33 +789,7 @@ function checkMilestones(){
     }
   }
 }
-$id('btn-queens').onclick=()=>{
-  const hired=Object.keys(S.queens).length;
-  const cost=Math.max(1000,totalIncome()*60);
-  const cd=Math.max(0,S.nightCd-now()), inspired=S.inspiredUntil>now();
-  let html=`<p>The Queens of Palmetto City. Powerful people. Powerful perks.</p><div class="stack">`;
-  for(const q of QUEENS){
-    const mine=!!S.queens[q.id];
-    html+=`<div class="up-row" style="${mine?'':'opacity:.65'}">
-      <div class="p-icon">${q.em}<img src="${q.pic}" alt="" onerror="this.remove()"></div>
-      <div class="up-main"><div class="up-name">${q.name} <span class="tier">${q.title}</span></div>
-      <div class="up-desc">${q.fx}</div></div>
-      ${mine?'<span class="status-hired">WITH YOU</span>':`<span class="status-locked">🔒 ${q.hint}</span>`}
-    </div>`;
-  }
-  html+=`</div>
-    <p class="led-line">NIGHT ON THE TOWN: ${$$(cost)} DIRTY → INSPIRED ×2 INCOME, 60s</p>`;
-  const can=hired>0&&S.dirty>=cost&&cd===0&&!inspired;
-  modal('THE QUEENS',html,[
-    {label:cd>0?'THE NIGHT NEEDS '+(Math.ceil(cd/1000))+'s':inspired?'ALREADY INSPIRED':hired?'NIGHT ON THE TOWN':'NO QUEENS YET',cls:'btn-primary',fn:()=>{
-       if(!can){toast(hired?'CHECK BACK LATER':'THE QUEENS DON\'T RUN WITH STRANGERS');return;}
-       S.dirty-=cost; S.inspiredUntil=now()+60000; S.nightCd=now()+600000;
-       const q=QUEENS.filter(x=>S.queens[x.id]);
-       toast(NIGHT_LINES[q.length?Math.floor(Math.random()*q.length):0]);
-       window.Radio&&Radio.sfx.fanfare();
-     }},
-    {label:'CLOSE',cls:'btn-ghost',fn:closeModal}]);
-};
+$id('btn-queens')&&0; // (menus now live in the Vice Phone)
 
 /* ---------------- RADIO UI ---------------- */
 function updateRadioFace(){
@@ -911,6 +799,8 @@ function updateRadioFace(){
   name.textContent=Radio.STATIONS[Radio.station].name;
   sub.textContent=RADIO_SUBS[Radio.station%RADIO_SUBS.length];
   $id('radio-mute').textContent=Radio.muted?'🔇':'🔊';
+  $id('pr-name').textContent=Radio.STATIONS[Radio.station].name.split('·')[0].trim();
+  $id('pr-sub').textContent=RADIO_SUBS[Radio.station%RADIO_SUBS.length];
 }
 function wireRadio(){
   if(!window.Radio)return;
@@ -931,28 +821,7 @@ const RACE_CD=60000;
 function actStake(){ return Math.max(500,Math.round(totalIncome()*60)); }   // street race
 function gatorStake(){ return Math.max(500,Math.round(totalIncome()*90)); }
 
-$id('btn-play').onclick=()=>{
-  modal('SIDE HUSTLES',
-    `<p>Palmetto City never sleeps. Neither does its money.</p><div class="stack">
-     <div class="up-row"><div class="p-icon">🏁</div><div class="up-main"><div class="up-name">STREET RACES</div>
-       <div class="up-desc">Five gears. Nail the shift. Wager pays ×2${has('roxy')?' · ROXY ×2':''} · 60s between runs</div></div>
-       <button class="up-buy" data-a="street" ${S.unlocked<2||now()<S.acts.scd?'disabled':''}>${S.unlocked<2?'D2':now()<S.acts.scd?'⏱':'RACE'}</button></div>
-     <div class="up-row"><div class="p-icon">🐊</div><div class="up-main"><div class="up-name">GATOR RACES</div>
-       <div class="up-desc">Four gators, one swamp. Odds ×1.8 to ×7${has('yara')?' · YARA ×1.5':''}</div></div>
-       <button class="up-buy" data-a="gator" ${S.unlocked<5||now()<S.acts.gcd?'disabled':''}>${S.unlocked<5?'D5':now()<S.acts.gcd?'⏱':'BET'}</button></div>
-     <div class="up-row"><div class="p-icon">🎟️</div><div class="up-main"><div class="up-name">SCRATCH CARDS</div>
-       <div class="up-desc">Three of a kind walks away rich.</div></div>
-       <button class="up-buy" data-a="scratch">SCRATCH</button></div>
-     </div>`,
-    [{label:'CLOSE',cls:'btn-primary',fn:closeModal}]);
-  $id('modal-body').querySelectorAll('[data-a]').forEach(b=>{
-    b.onclick=()=>{ window.Radio&&Radio.sfx.tick();
-      if(b.dataset.a==='street')openStreetRace();
-      else if(b.dataset.a==='gator')openGatorRace();
-      else openScratch();
-    };
-  });
-};
+$id('btn-play')&&0; // (menus now live in the Vice Phone)
 
 /* ----- street race ----- */
 let streetRAF=0;
@@ -1101,6 +970,261 @@ function scoreScratch(cells,cost,grid){
   else $id('scr-status').textContent='NOTHING. THE HOUSE SENDS ITS REGARDS.';
 }
 
+/* ---------------- VICE PHONE ---------------- */
+const SVGS={
+  lock:'<svg class="ic" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
+  play:'<svg class="ic" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg>',
+  star:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 3l2.4 5.4L20 9l-4 4 1 5.8L12 16l-5 2.8L8 13 4 9l5.6-.6z"/></svg>',
+};
+function showApp(name){
+  document.querySelectorAll('#phone .scr').forEach(s=>s.classList.toggle('on',s.id==='scr-'+name));
+  $id('scr-home').classList.toggle('on',name==='home');
+  window.Radio&&Radio.sfx.tick();
+  if(name==='queens')renderQueensApp();
+  else if(name==='hustles')renderHustlesApp();
+  else if(name==='vault')renderVaultApp();
+  else if(name==='crew')renderCrewApp();
+  else if(name==='legacy')renderLegacyApp();
+  else if(name==='settings')renderSettingsApp();
+}
+function openPhone(app){
+  document.body.classList.add('phone-open');
+  window.Radio&&Radio.sfx.blip(760);
+  showApp(app||'home');
+}
+function closePhone(){
+  document.body.classList.remove('phone-open');
+  showApp('home');
+}
+$id('btn-phone').onclick=()=>{ document.body.classList.contains('phone-open')?closePhone():openPhone(); };
+$id('phone-scrim').onclick=closePhone;
+document.querySelectorAll('#phone .app').forEach(a=>a.onclick=()=>showApp(a.dataset.app));
+document.querySelectorAll('#phone [data-back]').forEach(b=>b.onclick=()=>showApp('home'));
+addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&document.body.classList.contains('phone-open')){closePhone();return;}
+  if((e.key==='p'||e.key==='P')&&started&&!/INPUT|TEXTAREA/.test(e.target.tagName)){
+    document.body.classList.contains('phone-open')?closePhone():openPhone();
+  }
+});
+setInterval(()=>{ // live clock + greet
+  const d=new Date();
+  $id('p-clock').textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  $id('p-greet').textContent=(S.era===2?'PRESENT DAY':'1986')+' · '+districtOf(S.active).name;
+},15000);
+
+function updateBadges(){
+  const set=(id,txt,cd)=>{ const b=$id('bdg-'+id); if(!b)return;
+    if(txt==null){b.hidden=true;return;} b.hidden=false; b.textContent=txt; b.classList.toggle('cd',!!cd); };
+  set('queens', QUEENS.filter(q=>!S.queens[q.id]&&q.unlock(S)).length||null);
+  const scd=S.acts.scd-now(), gcd=S.acts.gcd-now(), rcd=Math.max(scd,gcd);
+  set('hustles', rcd>0?mmss(rcd/1000):null, true);
+  const cleared=Object.keys(S.vault).length;
+  set('vault', cleared?cleared+'/12':null);
+  set('crew', LIEUTS.filter(l=>!S.lieuts[l.id]&&l.unlock(S)).length||null);
+  set('legacy', respectGain()>0?'+'+fmt(respectGain()):null);
+  $id('phone-ping').hidden=!(QUEENS.some(q=>!S.queens[q.id]&&q.unlock(S))||respectGain()>0);
+}
+
+/* ---- QUEENS app ---- */
+function renderQueensApp(){
+  $id('queens-sub').textContent=Object.keys(S.queens).length+' / '+QUEENS.length;
+  let html='<div class="q-grid">';
+  for(const q of QUEENS){
+    const mine=!!S.queens[q.id];
+    html+=`<div class="q-card ${mine?'mine':'locked'}">
+      <div class="q-art"><img src="${q.pic}" alt="" onerror="this.remove()">
+        ${mine?'<span class="q-withyou">WITH YOU</span>':`<span class="q-lock">${SVGS.lock}</span>`}</div>
+      <div class="q-plate"><div class="q-name">${mine?q.name:'???'}</div>
+        <div class="q-title">${q.title.toUpperCase()}</div>
+        ${mine?`<span class="q-perk">${q.fx}</span>`:`<span class="q-hint">${q.hint}</span>`}</div>
+    </div>`;
+  }
+  html+='</div>';
+  const cost=Math.max(1000,totalIncome()*60);
+  const cd=Math.max(0,S.nightCd-now()), inspired=S.inspiredUntil>now();
+  const frac=cd>0?cd/600000:0, CIRC=100.5;
+  html+=`<div class="night">
+    <div class="night-ring" title="Night on the Town cooldown">
+      <svg class="ring" viewBox="0 0 40 40"><circle class="bgc" cx="20" cy="20" r="16" fill="none" stroke-width="4"/>
+      <circle class="fgc" cx="20" cy="20" r="16" fill="none" stroke-width="4" stroke-dasharray="${CIRC}" stroke-dashoffset="${(CIRC*(1-frac)).toFixed(1)}"/></svg>
+      <svg class="mid ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.5 1.5M16.9 16.9l1.5 1.5M18.4 5.6l-1.5 1.5M7.1 16.9l-1.5 1.5"/></svg>
+    </div>
+    <div class="night-main"><div class="night-t">NIGHT ON THE TOWN</div>
+      <div class="night-d" id="night-d">${inspired?'INSPIRED ×2 — LIVING IT UP':cd>0?'THE NIGHT NEEDS '+mmss(cd/1000):$$(cost)+' dirty → INSPIRED ×2 income · 60s'}</div></div>
+    <button class="btn-gold" id="night-btn" ${inspired||cd>0?'disabled':''}>${inspired?'INSPIRED':cd>0?'WAIT':'TAKE HER OUT'}</button>
+  </div>`;
+  $id('queens-body').innerHTML=html;
+  $id('night-btn').onclick=()=>{
+    if(S.inspiredUntil>now()||S.nightCd>now())return;
+    if(!Object.keys(S.queens).length){toast('THE QUEENS DON\'T RUN WITH STRANGERS');return;}
+    if(S.dirty<cost){toast('NOT ENOUGH DIRTY CASH');return;}
+    S.dirty-=cost; S.inspiredUntil=now()+60000; S.nightCd=now()+600000;
+    const q=QUEENS.filter(x=>S.queens[x.id]);
+    toast(NIGHT_LINES[q.length?Math.floor(Math.random()*q.length):0]);
+    window.Radio&&Radio.sfx.fanfare();
+    renderQueensApp();
+  };
+}
+
+/* ---- HUSTLES app ---- */
+function renderHustlesApp(){
+  $id('hustles-sub').textContent=S.acts.races+' RUNS · '+(S.acts.swins+S.acts.gwins)+' WINS';
+  const cards=[
+    {id:'street',ok:S.unlocked>=2,lockTxt:'D2',name:'STREET RACES',
+     d:`Five gears. Nail the shift. ×2${has('roxy')?' · ROXY ×2':''}`,
+     cd:S.acts.scd-now(),cdTxt:'60s between runs',
+     stake:actStake(),stats:[['STAKE',$$(actStake())],['WINS',S.acts.swins]]},
+    {id:'gator',ok:S.unlocked>=5,lockTxt:'D5',name:'GATOR RACES',
+     d:`Four gators, one swamp. ×1.8 to ×7${has('yara')?' · YARA ×1.5':''}`,
+     cd:S.acts.gcd-now(),cdTxt:'60s between bets',
+     stake:gatorStake(),stats:[['STAKE',$$(gatorStake())],['WINS',S.acts.gwins]]},
+    {id:'scratch',ok:true,lockTxt:'',name:'SCRATCH CARDS',
+     d:'4 of a kind ×2.5 · 5+ ×30',cd:-1,cdTxt:'no cooldown',
+     stake:Math.max(500,Math.round(totalIncome()*30)),stats:[['CARD',$$(Math.max(500,Math.round(totalIncome()*30)))],['CARDS',S.acts.scratch]]},
+  ];
+  let html='';
+  for(const c of cards){
+    const ready=c.ok&&c.cd<=0;
+    html+=`<div class="h-card">
+      <button class="go" data-go="${c.id}" ${c.ok?'':'disabled'} title="${c.ok?'':'Unlocks at '+c.lockTxt}"></button>
+      <div class="h-top">
+        <svg class="h-ico ic" viewBox="0 0 24 24">${
+          c.id==='street'?'<path d="M4 17h16M6 17l-1-7 4 3 3-6 3 6 4-3-1 7"/><path d="M12 7V4M10.5 5.5L12 4l1.5 1.5"/>'
+          :c.id==='gator'?'<path d="M3 14c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M5 10.5C6.5 8.5 8 8.5 9.5 10.5"/><path d="M14.5 10.5C16 8.5 17.5 8.5 19 10.5"/><path d="M7 19c1.5-1.5 3-1.5 4.5 0s3 1.5 4.5 0"/>'
+          :'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M8 5v4M16 5v4"/><path d="M10.5 15.5l1-2 1.5 2.5 1-1.5"/>'}</svg>
+        <div><div class="h-name">${c.name}</div><div class="h-d">${c.d}${c.ok?'':' · 🔒 unlocks '+c.lockTxt}</div></div>
+        <div class="h-cd ${ready?'ready':''}"><div class="t">${c.ok?(c.cd>0?mmss(c.cd/1000):'READY'):c.lockTxt}</div><div class="r">${c.cdTxt}</div></div>
+      </div>
+      <div class="h-stats">${c.stats.map(s=>`<span class="h-stat">${s[0]} <b>${s[1]}</b></span>`).join('')}</div>
+    </div>`;
+  }
+  $id('hustles-body').innerHTML=html;
+  $id('hustles-body').querySelectorAll('[data-go]').forEach(b=>{
+    b.onclick=()=>{ window.Radio&&Radio.sfx.tick();
+      if(b.dataset.go==='street')openStreetRace();
+      else if(b.dataset.go==='gator')openGatorRace();
+      else openScratch();
+    };
+  });
+}
+
+/* ---- VAULT app ---- */
+function renderVaultApp(){
+  const cleared=Object.keys(S.vault).length;
+  $id('vault-sub').textContent=cleared+' / '+HEISTS.length;
+  let html=`<div class="v-led">FIRST-CLEAR CINEMATICS · <b>${cleared} RECOVERED</b></div><div class="v-shelf">`;
+  for(const h of HEISTS){
+    const ok=!!S.vault[h.id];
+    html+=`<div class="tape ${ok?'cleared':'locked'}"><div class="kind">${KIND_TXT[h.kind]}</div>
+      <div class="tname">${ok?h.name:'???'}</div><span class="risk">${'★'.repeat(h.risk)}</span>
+      ${ok?`<button class="watch" data-vid="${h.vid}" data-n="${h.name}">${SVGS.play}WATCH</button>`:''}
+    </div>`;
+  }
+  html+='</div>';
+  $id('vault-body').innerHTML=html;
+  $id('vault-body').querySelectorAll('[data-vid]').forEach(b=>{
+    b.onclick=()=>{
+      window.Radio&&Radio.sfx.tick();
+      modal(b.dataset.n,
+        `<video src="${b.dataset.vid}" controls autoplay muted loop playsinline></video>
+         <p class="led-line" style="margin-top:10px">First-clear cinematic.</p>`,
+        [{label:'DONE',cls:'btn-primary',fn:closeModal}]);
+    };
+  });
+}
+
+/* ---- CREW app ---- */
+function renderCrewApp(){
+  const hired=LIEUTS.filter(l=>has(l.id)).length;
+  $id('crew-sub').textContent=hired+' / '+LIEUTS.length+' HIRED';
+  let html='';
+  for(const l of LIEUTS){
+    const mine=has(l.id);
+    html+=`<div class="c-row" style="${mine?'':'opacity:.62'}">
+      <div class="c-art">${l.em}<img src="${l.pic}" alt="" onerror="this.remove()"></div>
+      <div class="c-main"><div class="c-name">${l.name} <span>· ${l.role}</span></div><div class="c-fx">${l.fx}</div></div>
+      ${mine?'<span class="chip hired">HIRED</span>':`<span class="chip lock">${l.hint}</span>`}
+    </div>`;
+  }
+  $id('crew-body').innerHTML=html;
+}
+
+/* ---- LEGACY app ---- */
+function renderLegacyApp(){
+  const gain=respectGain(), can=S.unlocked>=3;
+  let html=`<div class="l-led">RESPECT <b>${fmt(S.respect)}</b> · PENDING <b>+${fmt(gain)}</b></div>`;
+  html+=`<div class="era"><div class="t">ERA II — "PRESENT DAY" ${S.era>=2?'· LIVE':''}</div>
+    <div class="d">A new skyline, a new decade. ×5 income everywhere.${S.era>=2?' You are living in it.':''}</div>
+    ${S.era>=2?'':`<button class="btn-gold go" data-era="2" ${S.respect<100?'disabled':''} style="margin-top:9px">${S.respect<100?'100 RP TO ENTER':'ENTER · 100 RP'}</button>`}</div>`;
+  html+='<div class="l-grid">';
+  for(const t of LEGACY){
+    const lvl=S.spent[t.id], maxed=lvl>=t.max, cost=LEGACY_COSTS[lvl];
+    html+=`<div class="l-card"><div class="l-name">${SVGS.star} ${t.name}</div>
+      <div class="l-pips">${Array.from({length:t.max},(_,i)=>`<i class="${i<lvl?'on':''}"></i>`).join('')}</div>
+      <button class="l-buy" data-l="${t.id}" ${maxed||S.respect<cost?'disabled':''}>${maxed?'MAXED':cost+' RP'}</button>
+    </div>`;
+  }
+  html+='</div>';
+  html+=`<button class="btn-gold" id="retire-btn" style="width:100%;margin-bottom:14px" ${can&&gain>0?'':'disabled'}>
+    ${can?`RETIRE — THE BIG SCORE (+${fmt(gain)} RP)`:'UNLOCK DOWNTOWN TO RETIRE'}</button>`;
+  html+='<div class="mile-strip">'+MILESTONES.map(m=>
+    `<span class="mile ${S.mile[m.id]?'on':''}">${SVGS.star}${m.name}</span>`).join('')+'</div>';
+  $id('legacy-body').innerHTML=html;
+  $id('legacy-body').querySelectorAll('[data-l]').forEach(b=>{
+    b.onclick=()=>{
+      const id=b.dataset.l, t=LEGACY.find(x=>x.id===id), lvl=S.spent[id];
+      if(lvl>=t.max)return;
+      const cost=LEGACY_COSTS[lvl];
+      if(S.respect<cost){toast('NOT ENOUGH RESPECT');return;}
+      S.respect-=cost; S.spent[id]++; checkLieuts(); updateBadges(); renderLegacyApp();
+      window.Radio&&Radio.sfx.chaChing();
+    };
+  });
+  const eraBtn=$id('legacy-body').querySelector('[data-era]');
+  if(eraBtn)eraBtn.onclick=()=>{
+    if(S.era>=2||S.respect<100)return;
+    S.respect-=100; S.era=2; applyDistrict(); updateLedger(); updateBadges(); save();
+    window.Radio&&Radio.sfx.fanfare();
+    modal('ERA II — PRESENT DAY',
+      `<p>The neon faded. The towers grew glass. Palmetto City, present day.</p>
+       <p class="led-line">INCOME ×5 EVERYWHERE · NEW SKYLINE</p>`,
+      [{label:'WELCOME TO TODAY',cls:'btn-primary',fn:closeModal}]);
+  };
+  $id('retire-btn').onclick=()=>{ if(can&&gain>0)confirmPrestige(gain); else toast(can?'NOTHING TO RETIRE ON YET':'UNLOCK DOWNTOWN FIRST'); };
+}
+
+/* ---- SETTINGS app ---- */
+function renderSettingsApp(){
+  $id('settings-body').innerHTML=`
+    <p class="s-note">Progress saves automatically in this browser. Station + mute live here too.</p>
+    <div class="s-note" style="color:var(--teal)">EXPORT SAVE</div>
+    <textarea id="exp" readonly>${JSON.stringify(S)}</textarea>
+    <div class="s-note" style="color:var(--teal)">IMPORT SAVE</div>
+    <textarea id="imp" placeholder="paste a save string…"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn-gold" id="imp-btn" style="flex:1">IMPORT</button>
+      <button class="btn btn-ghost" id="wipe-btn" style="flex:1">WIPE SAVE</button>
+    </div>`;
+  $id('imp-btn').onclick=()=>{
+    try{
+      const d=JSON.parse($id('imp').value);
+      if(!d||d.v>SAVE_VER)throw 0;
+      S=Object.assign(defaultState(),d); save(); location.reload();
+    }catch(e){toast('THAT SAVE DON\'T ROLL');}
+  };
+  $id('wipe-btn').onclick=()=>modal('WIPE EVERYTHING?','<p>The empire. Gone. Like it never happened.</p>',
+    [{label:'WIPE',cls:'btn-primary',fn:()=>{try{localStorage.removeItem(SAVE_KEY);}catch(e){} location.reload();}},
+     {label:'KEEP',cls:'btn-ghost',fn:closeModal}]);
+}
+
+/* phone radio strip */
+function wirePhoneRadio(){
+  if(!window.Radio)return;
+  $id('pr-prev').onclick=()=>{Radio.prev();S.radio.st=Radio.station;updateRadioFace();Radio.sfx.tick();};
+  $id('pr-next').onclick=()=>{Radio.next();S.radio.st=Radio.station;updateRadioFace();Radio.sfx.tick();};
+  $id('pr-mute').onclick=()=>{S.radio.muted=Radio.toggleMute();updateRadioFace();};
+}
+
 /* ---------------- MODAL ---------------- */
 function modal(title,bodyHTML,buttons){
   $id('modal-title').textContent=title;
@@ -1116,28 +1240,7 @@ function modal(title,bodyHTML,buttons){
 }
 function closeModal(){ $id('modal').hidden=true; }
 
-function settingsModal(){
-  modal('SETTINGS',
-    `<p style="margin-bottom:6px">Progress saves automatically in this browser.</p>
-     <div>EXPORT SAVE</div>
-     <textarea id="exp" readonly>${JSON.stringify(S)}</textarea>
-     <div>IMPORT SAVE</div>
-     <textarea id="imp" placeholder="paste a save string…"></textarea>`,
-    [{label:'IMPORT',cls:'btn-ghost',fn:()=>{
-        try{
-          const d=JSON.parse($id('imp').value);
-          if(!d||d.v>SAVE_VER)throw 0;
-          S=Object.assign(defaultState(),d); save(); location.reload();
-        }catch(e){toast('THAT SAVE DON\'T ROLL');}
-     },keep:true},
-     {label:'WIPE SAVE',cls:'btn-ghost',fn:()=>{
-        modal('WIPE EVERYTHING?','<p>The empire. Gone. Like it never happened.</p>',
-          [{label:'WIPE',cls:'btn-primary',fn:()=>{try{localStorage.removeItem(SAVE_KEY);}catch(e){} location.reload();}},
-           {label:'KEEP',cls:'btn-ghost',fn:closeModal}]);
-     }},
-     {label:'CLOSE',cls:'btn-primary',fn:closeModal}]);
-}
-$id('btn-settings').onclick=settingsModal;
+function settingsModal(){} // (settings now live in the Vice Phone)
 
 /* ---------------- INTRO / OFFLINE ---------------- */
 function introModal(){
@@ -1192,7 +1295,7 @@ setInterval(()=>{
   dt=clamp(dt,0,5);
   if(started){
     if(!isPaused()){ sim(dt,t); checkLieuts(); checkQueens(); checkMilestones(); }
-    updateCards(t); updateHUD(t); updateLedger(); updateHeistBtn(t);
+    updateCards(t); updateHUD(t); updateLedger(); updateHeistBtn(t); updateBadges();
   }
 },TICK_MS);
 setInterval(()=>{ if(started){ tickIdx=(tickIdx+1)%TICKER.length;
@@ -1230,7 +1333,7 @@ function boot(){
   if(window.Radio){
     Radio.setMuted(S.radio.muted);
     Radio.setStation(S.radio.st);
-    wireRadio();
+    wireRadio(); wirePhoneRadio();
     document.addEventListener('pointerdown',()=>Radio.init(),{once:true});
   }
   // district video: show only while truly playing, fall back to the painted still otherwise
