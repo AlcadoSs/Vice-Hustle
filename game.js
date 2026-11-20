@@ -1365,6 +1365,22 @@ const MSG_CHAR={
   ghost:   {name:'Ghost',    pic:'art/portraits/ghost.jpg',em:'👤'},
   system:  {name:'PALMETROCOM',pic:'',                      em:'📡'},
 };
+const MSG_PHOTOS={
+  solana:['art/photos/solana-beach.jpg','art/photos/solana-pool.jpg'],
+  camille:['art/photos/camille-casino.jpg','art/photos/camille-mirror.jpg'],
+  roxy:['art/photos/roxy-car.jpg','art/photos/roxy-garage.jpg'],
+  yara:['art/photos/yara-gator.jpg','art/photos/yara-airboat.jpg'],
+  destiny:['art/photos/destiny-stage.jpg','art/photos/destiny-studio.jpg'],
+  vivienne:['art/photos/vivienne-yacht.jpg','art/photos/vivienne-desk.jpg'],
+  ray:['art/photos/ray-bar.jpg'],
+  sal:['art/photos/sal-desk.jpg'],
+  kmr:['art/photos/kmr-studio.jpg'],
+  ghost:['art/photos/ghost-dark.jpg'],
+};
+function pickPhoto(from){
+  const ph=MSG_PHOTOS[from];
+  return ph?ph[Math.floor(Math.random()*ph.length)]:null;
+}
 const MSG_POOLS={
   heistWin:{
     solana:['That take was HOT, hot stuff. The beach is calling — bring champagne. 🏖️','You cracked it open like a coconut. I love that about you.','Big money, bigger smile. I saw the lights from the shore. ✨'],
@@ -1445,7 +1461,9 @@ function msgFrom(from,event,extra){
     if(isQueen&&!S.queens[from])return;
     if(!isQueen&&!S.lieuts[from]&&from!=='kmr')return;
   }
-  S.msgs.unshift({from,event,text:msg,reply,ts:now(),read:false});
+  // attach photo: always for replyable, 50% for regular
+  const photo=reply?pickPhoto(from):(Math.random()<.5?pickPhoto(from):null);
+  S.msgs.unshift({from,event,text:msg,reply,ts:now(),read:false,photo});
   if(S.msgs.length>20)S.msgs.length=20;
   S.unreadMsgs=(S.unreadMsgs||0)+1;
   updateBadges();
@@ -1482,6 +1500,7 @@ function renderPulseApp(){
       <div class="msg-main">
         <div class="msg-top"><span class="msg-name">${c.name}</span><span class="msg-time">${timeStr}</span></div>
         <div class="msg-text">${m.text}</div>
+        ${m.photo?`<div class="msg-photo-wrap"><img class="msg-photo" src="${m.photo}" alt="" onerror="this.parentElement.remove()"></div>`:''}
         ${m.reply&&m.reply.chosen===null?`
           <div class="msg-reply-bar">
             ${m.reply.opts.map((o,i)=>`<button class="msg-reply" data-ts="${m.ts}" data-i="${i}">${o}</button>`).join('')}
