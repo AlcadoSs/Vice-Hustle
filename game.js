@@ -913,7 +913,6 @@ function openStreetRace(){
   keyedCar('art/cars/player.jpg',u=>{const el=$id('you-sv');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
   keyedCar('art/cars/rival.jpg',u=>{const el=$id('rival-sv');if(el)el.src=u||CAR_SIDE('#7a2f55','#ff5d7a');});
   dragR={rpm:0,dir:1,rate:.55,gear:1,mph:0,over:false,last:0,running:false,stage:'tree',stake};
-  dragR={rpm:0,dir:1,rate:.55,gear:1,mph:0,over:false,last:0,running:false,stage:'tree'};
   const tree=$id('tree').children;
   const modalBox=$id('modal-body');
   let tstep=0;
