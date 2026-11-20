@@ -792,13 +792,15 @@ function checkMilestones(){
 $id('btn-queens')&&0; // (menus now live in the Vice Phone)
 
 /* ---------------- RADIO UI ---------------- */
+const VOL_ON='<svg class="ic" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>';
+const VOL_OFF='<svg class="ic" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9l5 6M21 9l-5 6"/></svg>';
 function updateRadioFace(){
   if(!window.Radio)return;
   const face=$id('radio'), name=$id('radio-name'), sub=$id('radio-sub');
   face.classList.remove('live'); void face.offsetWidth; face.classList.add('live');
   name.textContent=Radio.STATIONS[Radio.station].name;
   sub.textContent=RADIO_SUBS[Radio.station%RADIO_SUBS.length];
-  $id('radio-mute').textContent=Radio.muted?'🔇':'🔊';
+  $id('radio-mute').innerHTML=Radio.muted?VOL_OFF:VOL_ON;
   $id('pr-name').textContent=Radio.STATIONS[Radio.station].name.split('·')[0].trim();
   $id('pr-sub').textContent=RADIO_SUBS[Radio.station%RADIO_SUBS.length];
 }
