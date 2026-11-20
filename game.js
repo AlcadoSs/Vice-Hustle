@@ -431,7 +431,9 @@ function renderTodayStrip(){
   for(const t of S.daily.tasks){
     const def=DAILY_POOL.find(p=>p.id===t.id); if(!def)continue;
     const cur=def.money?$$(t.prog):t.prog, goal=def.money?$$(t.goal):t.goal;
-    html+=`<div class="td-row${t.done?' done':''}">
+    const how=def.money?('launder '+$$(t.goal)+' clean money'):def.d;
+    const tip=`${def.name} — HOW TO: ${how}. REWARD: +${DAILY_RP} RP${t.done?' · ALREADY EARNED TODAY':''}`;
+    html+=`<div class="td-row${t.done?' done':''}" data-tip="${tip}">
       <span class="td-name">${def.name}</span>
       <span class="td-bar"><i style="width:${Math.min(100,t.goal?100*t.prog/t.goal:100)}%"></i></span>
       <span class="td-prog">${t.done?'DONE':cur+' / '+goal}</span>
