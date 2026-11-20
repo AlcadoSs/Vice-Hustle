@@ -922,29 +922,23 @@ function ctRound(){
       const dblCount=d.h.risk>=3?2:d.h.risk===2?1:0;
       const doSwap=()=>{
         if(!drill||drill.over)return;
-        // dealer reach: neighbor slot (70%) or one-over (30%) — cards never fly across the whole row
-        const a=Math.floor(Math.random()*4), d=Math.random()<.7?1:2;
-        const dests=[]; if(a-d>=0)dests.push(a-d); if(a+d<=3)dests.push(a+d);
-        const b=dests[Math.floor(Math.random()*dests.length)];
-        animateSwap(slots,a,b);
-        [slots[a],slots[b]]=[slots[b],slots[a]];
+        // Monte grammar — no crossing lanes: adjacent swap (70%) or pack rotation (30%)
+        if(Math.random()<.7){ ctSwap(Math.floor(Math.random()*3),0); settle(640); }
+        else { ctRotate(Math.random()<.5?1:-1); settle(640); }
         window.Radio&&Radio.sfx.tick();
         swaps++;
-        if(swaps<seqCount)drillTO=setTimeout(doSwap,480); // wait out the animation — no mid-flight pileups
-        else if(dblCount>0)drillTO=setTimeout(doDoubleSwap,620);
+        if(swaps<seqCount)drillTO=setTimeout(doSwap,740); // wait out the choreography — no mid-flight pileups
+        else if(dblCount>0)drillTO=setTimeout(doDoubleSwap,780);
         else finishShuffle();
       };
       const doDoubleSwap=()=>{
         if(!drill||drill.over)return;
-        // two disjoint pairs, near pairings only: [0,1]+[2,3] or [0,2]+[1,3] — never the far 0<->3 reach
-        const pairs=Math.random()<.5?[[0,1],[2,3]]:[[0,2],[1,3]];
-        for(const [a,b] of pairs){
-          animateSwap(slots,a,b);
-          [slots[a],slots[b]]=[slots[b],slots[a]];
-        }
+        // two adjacent swaps at once — the second pair follows a beat behind, like two hands
+        ctSwap(0,1,0); ctSwap(2,3,70);
+        settle(640);
         window.Radio&&Radio.sfx.blip(520);
         swaps++;
-        if(swaps<seqCount+dblCount)drillTO=setTimeout(doDoubleSwap,680);
+        if(swaps<seqCount+dblCount)drillTO=setTimeout(doDoubleSwap,780);
         else finishShuffle();
       };
       const finishShuffle=()=>{
@@ -952,25 +946,52 @@ function ctRound(){
         d.phase='pick'; d.money=slots.indexOf(d.money);
         $id('ct-help').textContent='Where did it go? PICK.';
       };
-      function animateSwap(sl,i,j){
-        const ca=cards[sl[i]], cb=cards[sl[j]];
+      // adjacent swap — one card arcs OVER, the other ducks UNDER a beat later
+      function ctSwap(i,j,pairDelay){
+        const ca=cards[slots[i]], cb=cards[slots[j]];
         if(!ca||!cb)return;
-        const w=ca.offsetWidth+12;
-        const dir=sl[i]<sl[j]?1:-1;
-        const dist=w*Math.abs(sl[j]-sl[i]);
-        // dealer feel: one card arcs OVER (high lift, tilt), the other scoots UNDER (low arc, counter-tilt)
-        ctMove(ca, dir*dist, 6, -44);
-        ctMove(cb, -dir*dist, -6, -16);
-        drillTO=setTimeout(()=>{
-          [ca,cb].forEach(c=>{ c.classList.remove('mv'); c.style.removeProperty('--d'); c.style.removeProperty('--tilt'); c.style.removeProperty('--lift'); });
-          tbl.innerHTML=''; slots.forEach(s=>tbl.appendChild(cards[s]));
-        },420);
+        const w=(ca.offsetWidth||74)+12, dir=i<j?1:-1;
+        ctMove(ca, dir*w, 7, -84, pairDelay||0);
+        ctMove(cb, -dir*w, -7, -20, (pairDelay||0)+50);
+        [slots[i],slots[j]]=[slots[j],slots[i]];
       }
-      function ctMove(el,d,tilt,lift){
+      // pack rotation — the end card flies over the row while the row slides to close the gap
+      function ctRotate(dir){
+        const w=(cards[0].offsetWidth||74)+12;
+        if(dir>0){
+          ctMove(cards[slots[0]], 3*w, 10, -84, 0);
+          for(let p=1;p<4;p++)ctSlide(cards[slots[p]], -w, 40*(p-1));
+          slots.push(slots.shift());
+        }else{
+          ctMove(cards[slots[3]], -3*w, -10, -84, 0);
+          for(let p=2;p>=0;p--)ctSlide(cards[slots[p]], w, 40*(2-p));
+          slots.unshift(slots.pop());
+        }
+      }
+      function ctMove(el,d,tilt,lift,delay){
         el.style.setProperty('--d',d+'px');
         el.style.setProperty('--tilt',tilt+'deg');
         el.style.setProperty('--lift',lift+'px');
+        el.style.setProperty('--ov',(d>=0?4:-4)+'px');
+        if(delay)el.style.animationDelay=delay+'ms';
         el.classList.add('mv');
+      }
+      function ctSlide(el,d,delay){
+        el.style.setProperty('--d',d+'px');
+        if(delay)el.style.animationDelay=delay+'ms';
+        el.classList.add('slide');
+      }
+      // one settle per move: wait out the longest choreography, then rebuild the row in slot order
+      function settle(ms){
+        drillTO=setTimeout(()=>{
+          if(!drill)return;
+          cards.forEach(c=>{
+            c.classList.remove('mv','slide');
+            ['--d','--tilt','--lift','--ov'].forEach(p=>c.style.removeProperty(p));
+            c.style.removeProperty('animation-delay');
+          });
+          tbl.innerHTML=''; slots.forEach(s=>tbl.appendChild(cards[s]));
+        },ms);
       }
       drillTO=setTimeout(doSwap,450);
     },1000);
