@@ -121,22 +121,22 @@ const NIGHT_LINES=[
 ];
 
 const MILESTONES=[
-  {id:'car1',    name:'Where It All Begins', test:s=>(s.r.cars||{n:0}).n>=1},
-  {id:'raid1',   name:'Slipped the Cuffs',   test:s=>s.stats.raids>=1},
-  {id:'tf1',     name:'Public Enemy',        test:s=>s.heat>=100},
-  {id:'heist1',  name:'First Score',         test:s=>s.stats.heists>=1},
-  {id:'queen1',  name:'Charmed',             test:s=>Object.keys(s.queens).length>=1},
-  {id:'crew4',   name:'The Outfit',          test:s=>Object.keys(s.lieuts).length>=4},
-  {id:'d2',      name:'Beach House',         test:s=>s.unlocked>=2},
-  {id:'d3',      name:'Skyline',             test:s=>s.unlocked>=3},
-  {id:'clean1m', name:'Seven Figures (Clean)',test:s=>s.stats.clean>=1e6},
-  {id:'d4',      name:'Harborlight',         test:s=>s.unlocked>=4},
-  {id:'d5',      name:'Swamp Thing',         test:s=>s.unlocked>=5},
-  {id:'d6',      name:'Star Struck',         test:s=>s.unlocked>=6},
-  {id:'races5',  name:'Green Flag',          test:s=>s.acts.races>=5},
-  {id:'vault3',  name:'Triple Threat',       test:s=>Object.keys(s.vault).length>=3},
-  {id:'scr10',   name:'Lucky Fingers',       test:s=>s.acts.scratch>=10},
-  {id:'big1',    name:'The Big Score',       test:s=>s.respectGranted>=1},
+  {id:'car1',    name:'Where It All Begins',  hint:'buy your first racket in the Motel Strip', test:s=>(s.r.cars||{n:0}).n>=1},
+  {id:'raid1',   name:'Slipped the Cuffs',    hint:'survive your first raid',                  test:s=>s.stats.raids>=1},
+  {id:'tf1',     name:'Public Enemy',         hint:'push Heat to 100 and draw the Task Force', test:s=>s.heat>=100},
+  {id:'heist1',  name:'First Score',          hint:'pull off your first heist',                test:s=>s.stats.heists>=1},
+  {id:'queen1',  name:'Charmed',              hint:'win over your first Queen',                test:s=>Object.keys(s.queens).length>=1},
+  {id:'crew4',   name:'The Outfit',           hint:'have 4 crew members hired at once',        test:s=>Object.keys(s.lieuts).length>=4},
+  {id:'d2',      name:'Beach House',          hint:'unlock Neon Beach ($150K clean)',          test:s=>s.unlocked>=2},
+  {id:'d3',      name:'Skyline',              hint:'unlock Downtown ($4M clean)',              test:s=>s.unlocked>=3},
+  {id:'clean1m', name:'Seven Figures (Clean)',hint:'launder $1M clean money, lifetime',        test:s=>s.stats.clean>=1e6},
+  {id:'d4',      name:'Harborlight',          hint:'unlock The Docks ($120M clean)',           test:s=>s.unlocked>=4},
+  {id:'d5',      name:'Swamp Thing',          hint:'unlock Swamp Glades ($4B clean)',          test:s=>s.unlocked>=5},
+  {id:'d6',      name:'Star Struck',          hint:'unlock Star Island ($150B clean)',         test:s=>s.unlocked>=6},
+  {id:'races5',  name:'Green Flag',           hint:'run 5 races — street or swamp track',      test:s=>s.acts.races>=5},
+  {id:'vault3',  name:'Triple Threat',        hint:'first-clear 3 different heists (Vault)',   test:s=>Object.keys(s.vault).length>=3},
+  {id:'scr10',   name:'Lucky Fingers',        hint:'scratch 10 lotto tickets',                 test:s=>s.acts.scratch>=10},
+  {id:'big1',    name:'The Big Score',        hint:'retire once via The Big Score (prestige)', test:s=>s.respectGranted>=1},
 ];
 
 const TICKER=[
@@ -2225,18 +2225,25 @@ function renderLegacyApp(){
         ?`<button class="era-p" data-era="3" ${S.respect<400?'disabled':''}><img src="art/era3/skyline.jpg" alt=""><span class="et ${S.respect>=400?'gold':''}">${S.respect>=400?'ENTER · 400 RP':'400 RP'}</span></button>`
         :`<div class="era-p locked"><img src="art/era3/skyline.jpg" alt=""><span class="et">2049 · LOCKED</span></div>`}
   </div>`;
+  html+='<div class="panel-title" style="font-size:14px;margin:12px 0 4px">LEGACY PERKS</div>';
+  html+='<div class="m-note">PAID IN RESPECT · PERMANENT — KEPT THROUGH THE BIG SCORE</div>';
   html+='<div class="l-grid">';
   for(const t of LEGACY){
     const lvl=S.spent[t.id], maxed=lvl>=t.max, cost=LEGACY_COSTS[lvl];
-    html+=`<div class="l-card"><div class="l-name">${TRACK_ICONS[t.id]||SVGS.star} ${t.name}</div>
+    const tip=maxed
+      ?`${t.name} — ${t.desc}. MAXED at ${t.max}/${t.max}. Permanent: survives The Big Score.`
+      :`${t.name} — ${t.desc}. Next level ${lvl+1}/${t.max} costs ${cost} RP. Permanent: survives The Big Score.`;
+    html+=`<div class="l-card" title="${tip}"><div class="l-name">${TRACK_ICONS[t.id]||SVGS.star} ${t.name}</div>
+      <div class="l-desc">${t.desc}</div>
       <div class="l-pips">${Array.from({length:t.max},(_,i)=>`<i class="${i<lvl?'on':''}"></i>`).join('')}</div>
       <button class="l-buy" data-l="${t.id}" ${maxed||S.respect<cost?'disabled':''}>${maxed?'MAXED':cost+' RP'}</button>
     </div>`;
   }
   html+='</div>';
-  html+='<div class="panel-title" style="font-size:14px;margin:12px 0 8px">MILESTONES</div>';
+  html+='<div class="panel-title" style="font-size:14px;margin:12px 0 4px">MILESTONES</div>';
+  html+='<div class="m-note">BADGES OF THE RUN · TOAST WHEN EARNED · RESET ON THE BIG SCORE</div>';
   html+='<div class="mile-grid">'+MILESTONES.map(m=>
-    `<span class="mile-t ${S.mile[m.id]?'on':''}">${SVGS.star}${m.name}</span>`).join('')+'</div>';
+    `<span class="mile-t ${S.mile[m.id]?'on':''}" title="${m.name} — ${S.mile[m.id]?'EARNED':'HOW TO EARN'}: ${m.hint}.">${SVGS.star}<span class="mile-body"><b>${m.name}</b><small>${m.hint}</small></span></span>`).join('')+'</div>';
   $id('legacy-body').innerHTML=html;
   $id('legacy-body').querySelectorAll('[data-l]').forEach(b=>{
     b.onclick=()=>{
