@@ -37,10 +37,11 @@ function visible(unlocked,r){
   return out;
 }
 function stats(unlocked,r,lieuts){
-  let income=0,heat=0,wash=0;
+  let income=0,heat=0,wash=0,total=0;
   for(const rk of visible(unlocked,r)){
     const n=r[rk.id]?r[rk.id].n:0;
     if(n===0)continue;
+    total+=n;
     let dm=1;
     if(rk.d===4&&lieuts.rosa)dm*=1.5;
     if(rk.d===5&&lieuts.ana)dm*=1.4;
@@ -54,7 +55,7 @@ function stats(unlocked,r,lieuts){
     heat+=rk.heat*Math.sqrt(n);
   }
   if(r.security)heat*=.7;
-  return{income,heat,wash};
+  return{income,heat,wash,total};
 }
 
 /* ---- simulation harness ---- */
@@ -154,7 +155,7 @@ function simulate(name,policy,log){
       const bc=Math.max(400,income*45)*.5;
       if(dirty>=bc){dirty-=bc;heat=Math.max(0,heat-20);bribes++;}
     }
-    if(log&&t%(3600)===0&&t>0)log.push({h:t/3600,name,unlocked,income:st.income,heat,dirty,clean,raidLosses});
+    if(log&&t%(3600)===0&&t>0)log.push({h:t/3600,name,unlocked,income:st.income,heat,dirty,clean,raidLosses,total:st.total});
   }
   const st=stats(unlocked,r,lieuts);
   return{name,unlockTimes,endIncome:st.income,endWash:st.wash,raidLosses,raids,heistProfit,raceProfit,scratchProfit,bribes,
@@ -239,3 +240,12 @@ function fmt(n){
   if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(0);
 }
 module.exports={simulate};
+
+// Hourly heat profile for GRINDER
+const heatLog=[];
+simulate('GRINDER heat profile',STRATEGIES[3].mk,heatLog);
+console.log('\nHEAT PROFILE — GRINDER (racket-scaled decay, 50 threshold):');
+console.log('hour | heat | rackets | raids');
+heatLog.forEach(h=>{
+  console.log(String(h.h).padStart(4)+' | '+String(Math.round(h.heat)).padStart(4)+' | '+String(h.total||'?').padStart(7)+' | '+String(Math.round(h.raidLosses/1000))+'K lost');
+});
