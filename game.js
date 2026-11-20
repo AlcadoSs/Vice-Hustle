@@ -621,16 +621,17 @@ function startDial(h,base){
       </svg>
     </div>
     <div id="dial-stats">CLICKS <b class="teal">0</b>/${rounds} · MISSES <b class="red">0</b>/4</div>
-    <div id="ct-help">Tap / SPACE when the needle crosses the gold wedge.<br>Crack it in ${rounds} clicks. 4 slips and you're busted.</div>`;
+    <div id="ct-help"><b style="color:var(--gold)">TAP THE DIAL TO START</b> — then tap when the needle crosses the gold wedge.<br>Crack it in ${rounds} clicks. 4 slips and you're busted.</div>`;
   const wrap=$id('dial-wrap');
-  // start on first tap (needle parked at 12)
+  // start on first tap on the dial itself (needle parked at 12); subsequent dial taps are strikes
   const arm=()=>{
     if(!base.over&&!wrap.classList.contains('running')){
       wrap.classList.add('running');
+      $id('ct-help').innerHTML='Tap / SPACE when the needle crosses the <span class="gold">gold wedge</span>.';
       window.Radio&&Radio.sfx.blip(660);
     }else if(!base.over)dialStrike();
   };
-  wrap.onpointerdown=arm;
+  wrap.onpointerdown=e=>{e.stopPropagation();arm();};
   drill.dialKey=e=>{if(e.code==='Space'){e.preventDefault();arm();}};
   window.addEventListener('keydown',drill.dialKey);
 }
@@ -816,8 +817,7 @@ function strike(){
 }
 $id('heist-modal').addEventListener('click',e=>{
   if(e.target.closest('#drill-close'))return;
-  if(e.target.closest('#dial-wrap')||e.target.closest('#chase-stage')||e.target.closest('.ct-card'))return;
-  if(drill&&!drill.over&&drill.h.kind==='drill')dialStrike();
+  // drill strikes only fire from the dial itself (wrap.onpointerdown), not stray modal clicks
 });
 
 function endHeist(){
