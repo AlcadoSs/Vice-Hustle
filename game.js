@@ -171,7 +171,7 @@ function defaultState(){
     vault:{}, lieuts:{}, lastSal:0, era:1,
     radio:{st:0,muted:true}, acts:{races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},
     queens:{}, inspiredUntil:0, nightCd:0, mile:{},
-    msgs:[], unreadMsgs:0, msgBuff:null,
+    msgs:[], unreadMsgs:0, msgBuff:null, deploy:{},
     heistReadyAt:0, frenzy:0, ts:Date.now(),
     stats:{dirty:0,clean:0,raids:0,heists:0},
   };
@@ -234,6 +234,7 @@ function distMult(d){
   let m=1;
   if(d===4&&has('rosa'))m*=1.5;
   if(d===5&&has('ana'))m*=1.4;
+  m+=deployedTo(d);
   return m;
 }
 function racketLive(st){ return st.n>0&&st.lock<=now(); }
@@ -296,6 +297,7 @@ function load(){
     S.msgs=Array.isArray(d.msgs)?d.msgs:[];
     S.unreadMsgs=d.unreadMsgs||0;
     S.msgBuff=d.msgBuff||null;
+    S.deploy=d.deploy||{};
     // sanitize: heal saves poisoned by an old Infinity payout (JSON turns Infinity into null)
     for(const k of ['dirty','clean','heat','respect','respectGranted','lastSal','heistReadyAt','frenzy','inspiredUntil','nightCd']){
       const v=S[k];
@@ -1580,6 +1582,113 @@ function renderPulseApp(){
   });
 }
 
+/* ============================================================
+   CREW DEPLOYMENTS — assign crew to districts for area bonuses
+   Deployed to home district = double effect
+   ============================================================ */
+const DEPLOY_INFO={
+  // lieutenants
+  ray:     {home:0, name:'Ray "Chrome" Delgado', type:'lt'},
+  betty:   {home:1, name:'Miss Betty',           type:'lt'},
+  kmr:     {home:2, name:'DJ KRM',               type:'lt'},
+  sal:     {home:3, name:'"Suit" Sal Marchetti',  type:'lt'},
+  rosa:    {home:4, name:'Capitana Rosa',         type:'lt'},
+  ana:     {home:5, name:'Dr. Ana Peligro',       type:'lt'},
+  tang:    {home:6, name:'Tangerine Dream',       type:'lt'},
+  ghost:   {home:0, name:'The Ghost',             type:'lt'},
+  // queens
+  solana:  {home:2, name:'Solana Vega',           type:'q'},
+  camille: {home:3, name:'Camille St. Croix',      type:'q'},
+  roxy:    {home:2, name:'Roxy Rico',             type:'q'},
+  yara:    {home:5, name:'Yara',                  type:'q'},
+  destiny: {home:6, name:'Destiny Monroe',        type:'q'},
+  vivienne:{home:6, name:'Vivienne Ashford',      type:'q'},
+};
+function deployedTo(d){
+  // returns multiplier bonus for district d from deployed crew
+  let bonus=0;
+  for(const id in S.deploy){
+    const to=S.deploy[id];
+    if(to===d){
+      const info=DEPLOY_INFO[id];
+      if(!info)continue;
+      // must be hired/unlocked
+      const isQueen=info.type==='q';
+      if(isQueen&&!S.queens[id])continue;
+      if(!isQueen&&!S.lieuts[id])continue;
+      bonus+= info.home===d ? .30 : .15;
+    }
+  }
+  return bonus;
+}
+function renderDeployApp(){
+  const deployedCount=Object.keys(S.deploy).filter(id=>S.deploy[id]>0).length;
+  const totalHired=Object.keys(S.lieuts).length+Object.keys(S.queens).length;
+  $id('deploy-sub').textContent=deployedCount+' / '+totalHired+' DEPLOYED';
+  let html='';
+  // build list of all hired characters
+  const chars=[];
+  for(const l of LIEUTS)if(has(l.id))chars.push({id:l.id,em:l.em,pic:l.pic,fx:l.fx,...DEPLOY_INFO[l.id]});
+  for(const q of QUEENS)if(S.queens[q.id])chars.push({id:q.id,em:q.em,pic:q.pic,fx:q.fx,...DEPLOY_INFO[q.id]});
+  for(const ch of chars){
+    const deployed=S.deploy[ch.id]||0;
+    const homeName=ch.home===0?'Nomad':districtOf(ch.home).name;
+    const isHome=deployed===ch.home&&deployed>0;
+    html+=`<div class="dp-card ${deployed>0?'active':''} ${isHome?'home':''}">
+      <div class="msg-ava">${ch.em}${ch.pic?`<img src="${ch.pic}" alt="">`:''}</div>
+      <div class="dp-main">
+        <div class="dp-name">${ch.name}</div>
+        <div class="dp-home">Home: ${homeName}${isHome?' · ★×2':''}</div>
+        <div class="dp-fx">${deployed>0?'+'+Math.round((isHome?.30:.15)*100)+'% '+districtOf(deployed).name+' income':'Not deployed'}</div>
+      </div>
+      <div class="dp-actions">
+        ${deployed>0
+          ?`<span class="chip hired">${districtOf(deployed).name.split(' ')[0]}</span>
+            <button class="msg-del dp-remove" data-id="${ch.id}" title="Remove">×</button>`
+          :`<button class="dp-assign" data-id="${ch.id}">DEPLOY</button>`}
+      </div>
+    </div>`;
+  }
+  if(!chars.length)html='<div class="msg-sys">Hire crew first — then deploy them.</div>';
+  $id('deploy-body').innerHTML=html;
+  // wire assign buttons — show district picker
+  $id('deploy-body').querySelectorAll('.dp-assign').forEach(btn=>{
+    btn.onclick=()=>{
+      const id=btn.dataset.id;
+      // build picker
+      let pickerHtml='<div class="dp-picker">';
+      for(const d of DISTRICTS){
+        if(d.id>S.unlocked)continue;
+        const isHome=DEPLOY_INFO[id]&&DEPLOY_INFO[id].home===d.id;
+        pickerHtml+=`<button class="dp-pick ${isHome?'home-pick':''}" data-id="${id}" data-d="${d.id}">
+          ${d.icon} ${d.name}${isHome?' ★':''}</button>`;
+      }
+      pickerHtml+='</div>';
+      // replace the card content with the picker
+      const card=btn.closest('.dp-card');
+      card.innerHTML=pickerHtml+`<button class="dp-cancel">CANCEL</button>`;
+      card.querySelectorAll('.dp-pick').forEach(p=>{
+        p.onclick=()=>{
+          S.deploy[p.dataset.id]=+p.dataset.d;
+          window.Radio&&Radio.sfx.tick();
+          renderDeployApp();
+          updateLedger(); // income changed
+        };
+      });
+      card.querySelector('.dp-cancel').onclick=()=>renderDeployApp();
+    };
+  });
+  // wire remove buttons
+  $id('deploy-body').querySelectorAll('.dp-remove').forEach(btn=>{
+    btn.onclick=()=>{
+      delete S.deploy[btn.dataset.id];
+      window.Radio&&Radio.sfx.tick();
+      renderDeployApp();
+      updateLedger();
+    };
+  });
+}
+
 /* ---------------- VICE PHONE ---------------- */
 const SVGS={
   lock:'<svg class="ic" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
@@ -1597,6 +1706,7 @@ function showApp(name){
   else if(name==='crew')renderCrewApp();
   else if(name==='legacy')renderLegacyApp();
   else if(name==='pulse'){renderPulseApp();markMsgsRead();}
+  else if(name==='deploy')renderDeployApp();
   else if(name==='settings')renderSettingsApp();
 }
 function openPhone(app){
@@ -1628,6 +1738,7 @@ function updateBadges(){
   const set=(id,txt,cd)=>{ const b=$id('bdg-'+id); if(!b)return;
     if(txt==null){b.hidden=true;return;} b.hidden=false; b.textContent=txt; b.classList.toggle('cd',!!cd); };
   set('pulse', S.unreadMsgs>0?S.unreadMsgs:null);
+  set('deploy', Object.keys(S.deploy).filter(id=>S.deploy[id]>0).length||null);
   set('queens', QUEENS.filter(q=>!S.queens[q.id]&&q.unlock(S)).length||null);
   const scd=S.acts.scd-now(), gcd=S.acts.gcd-now(), rcd=Math.max(scd,gcd);
   set('hustles', rcd>0?mmss(rcd/1000):null, true);
