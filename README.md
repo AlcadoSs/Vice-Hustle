@@ -9,6 +9,10 @@
 </p>
 
 <p align="center">
+  <a href="https://alcadoss.github.io/Vice-Hustle/"><strong>▶ PLAY NOW</strong></a> — hosted on GitHub Pages, no install
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/HTML5-JavaScript-f06292?style=flat-square" alt="HTML5 + JS">
   <img src="https://img.shields.io/badge/audio-Web%20Audio%20API-16e0bd?style=flat-square" alt="Web Audio">
   <img src="https://img.shields.io/badge/art-Seedream%20(AI)-ff2e88?style=flat-square" alt="Seedream">
@@ -20,7 +24,7 @@
 
 **Vice Hustle** is a fan-made idle/tycoon game — an homage to the GTA VI hype and the 80s Miami-crime genre it resurrects. Start as a nobody with a borrowed Slim Jim on a seedy motel strip, and end up owning Star Island. The twist: **your money is a liability.** Rackets pay fast in *Dirty Cash*, but every dollar raises *Heat*, and Heat brings raids that confiscate everything you didn't launder.
 
-Built as a no-framework, no-build, single-tab web game. All 53 illustrations are AI-generated with **Seedream**, all 20 videos (living district backgrounds, heist cinematics) with **SeedDance**, and the entire soundtrack is **synthesized live in your browser** with the Web Audio API — no audio files, six procedural synthwave radio stations.
+Built as a no-framework, no-build, single-tab web game. All 89 illustrations are AI-generated with **Seedream**, all 20 videos (living district backgrounds, heist cinematics) with **SeedDance**, and the entire soundtrack is **synthesized live in your browser** with the Web Audio API — no audio files, six procedural synthwave radio stations.
 
 ## 🕹️ Play
 
@@ -37,6 +41,8 @@ python -m http.server 8123
 # → http://localhost:8123
 ```
 
+…or just play the hosted build: **https://alcadoss.github.io/Vice-Hustle/**
+
 ## 🎯 The core loop
 
 ```
@@ -48,25 +54,31 @@ run rackets ──▶ DIRTY CASH ──▶ buy more rackets
                                                 │
                           districts · crew · upgrades ◀─┘
                                                 │
-                             THE BIG SCORE (prestige) ──▶ RESPECT ──▶ LEGACY ──▶ ERA II
+                             THE BIG SCORE (prestige) ──▶ RESPECT ──▶ LEGACY ──▶ ERA II ──▶ ERA III
 ```
 
 - **Dirty Cash** — fast, spendable, *raidable*. **Clean Money** — laundered, safe, buys the empire.
 - **Heat 0–100** with four tiers; at 100 a Task Force taxes your income 25% until you cool off. Bribes, bent lawyers, and leaning on the right people help.
-- **The Big Score** — cash the whole empire out, retire to the Keys, come back with permanent Legacy multipliers and eventually change the decade itself.
+- **The Big Score** — cash the whole empire out, retire to the Keys, come back with permanent Legacy multipliers and eventually change the decade itself. Twice.
 
 ## ✨ What's inside
 
 | | |
 |---|---|
+| 📱 **The Vice Phone** | The whole game menu lives in a slide-in chrome phone — nine apps with live badges, a TODAY challenge strip, and a synthwave radio dock |
 | 🗺️ **6 districts** | Motel Strip → Neon Beach → Downtown → The Docks → Swamp Glades → Star Island, each with 5 rackets and a living AI-animated backdrop |
+| 🎬 **12 heist scores** | Three hand-played minigames — crack the **Vault Dial** (timing), survive the **Getaway Chase** (driving), track the **Card Table** (memory, with dealer-style arc shuffles) — each with an intro card and a first-clear cinematic in The Vault |
+| 🎲 **Side hustles** | **Night Drag** (drag racing on a tach and a prayer), **Swamp Track** (bet on Noodle the gator), **The Ticket** (a real canvas scratch-off) |
+| 🂡 **The Casino** | Blackjack at Camille's table — dealer stands on 17, blackjack pays 3:2, and hiring Camille improves the odds |
+| 👑 **The Queens** | Six companions with painted portraits, unlock conditions and real gameplay perks — take one for a *Night on the Town* and she'll text you about it |
+| 💬 **PULSE** | A live message feed from the Queens and the crew — ~70 lines of praise, warnings and trash talk, 16 candid photos, and reply-right texts that grant temp buffs |
+| 🧑‍🤝‍🧑 **8 lieutenants** | Auto-hired at milestones, from a bent lawyer to The Ghost — deploy them (and the Queens) to districts for income bonuses |
 | 📻 **WPLM Radio** | 6 procedural synthwave stations (one per district), synthesized live with Web Audio — plus sirens, cha-chings and fanfares |
-| 🎬 **12 heist scores** | Three minigames — *The Drill*, *The Boost*, *The Con* — with first-clear cinematics watchable in The Vault |
-| 👑 **The Queens** | Six companions with painted portraits, unlock conditions and real gameplay perks — take one for a *Night on the Town* |
-| 🎲 **Side hustles** | Street races, gator races (bet on Noodle), scratch cards |
-| 🧑‍🤝‍🧑 **8 lieutenants** | Auto-hired at milestones, from a bent lawyer to The Ghost |
-| ⚖️ **Balance-tested** | Headless simulator (`sim/balance.js`) races playstyles against the live game math — see `docs/BALANCE.md` |
-| 📼 **2 eras** | 1986 neon, and *Present Day* (×5 income, full sunny-Florida art reskin) at 100 Respect |
+| ⚡ **Random events** | Police crackdowns, tourist seasons and payday rushes roll in on DJ KRM's broadcast — heat spikes and income surges you can see coming |
+| 📅 **Daily challenges** | Three dated tasks a day on the phone's TODAY strip, paying bonus Respect |
+| 🎼 **3 eras** | 1986 neon → *Present Day* (×5 income, sunny-Florida reskin, 100 RP) → **2049** (×25 income, full chrome-city reskin, 400 RP) |
+| 🛠️ **Polish** | Neon-styled tooltips everywhere explain every perk, milestone and daily; a STILLS ONLY mode for battery-friendly play; every minigame animation runs on compositor CSS so throttled tabs can't break it |
+| ⚖️ **Balance-tested** | Headless simulators (`sim/balance.js`, `sim/heist-interval.js`) race playstyles against the live game math — see `docs/BALANCE.md` |
 
 ## 🖼️ The city
 
@@ -78,7 +90,7 @@ run rackets ──▶ DIRTY CASH ──▶ buy more rackets
 |---|---|---|
 | ![](art/districts/d4-docks.jpg) | ![](art/districts/d5-swamp.jpg) | ![](art/districts/d6-star-island.jpg) |
 
-*Era II reskins all six in modern daylight — earn it.*
+*Era II reskins all six in modern daylight, Era III in 2049 chrome — earn them.*
 
 ## 🗂️ Project structure
 
@@ -86,10 +98,12 @@ run rackets ──▶ DIRTY CASH ──▶ buy more rackets
 index.html · game.css · game.js    the game (no build step)
 radio.js                           6 procedural synthwave stations + SFX
 sim/balance.js                     24h playstyle balance simulator
+sim/heist-interval.js              heist-cadence economy A/B
+prototypes/                        standalone UI prototypes (Vice Phone)
 docs/GDD.md                        full game design document
 docs/ART_BIBLE.md                  style guide + prompt library
 docs/BALANCE.md                    balance findings & tuning log
-art/                               53 Seedream illustrations
+art/                               89 Seedream illustrations
 videos/                            20 SeedDance loops & cinematics
 saves/endgame.json                 god-mode test save (Settings → Import)
 ```
