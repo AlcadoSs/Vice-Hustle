@@ -1146,8 +1146,8 @@ function renderCrewApp(){
   for(const l of LIEUTS){
     const mine=has(l.id);
     html+=`<div class="c-row" style="${mine?'':'opacity:.62'}">
-      <div class="c-art">${l.em}<img src="${l.pic}" alt="" onerror="this.remove()"></div>
-      <div class="c-main"><div class="c-name">${l.name} <span>· ${l.role}</span></div><div class="c-fx">${l.fx}</div></div>
+      <div class="c-art"><img src="${l.pic}" alt="" onerror="this.remove()"></div>
+      <div class="c-main"><div class="c-name">${l.name} <span>· ${l.role}</span></div><div class="c-fx">${l.em} ${l.fx}</div></div>
       ${mine?'<span class="chip hired">HIRED</span>':`<span class="chip lock">${l.hint}</span>`}
     </div>`;
   }
