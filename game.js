@@ -801,6 +801,9 @@ function updateRadioFace(){
   name.textContent=Radio.STATIONS[Radio.station].name;
   sub.textContent=RADIO_SUBS[Radio.station%RADIO_SUBS.length];
   $id('radio-mute').innerHTML=Radio.muted?VOL_OFF:VOL_ON;
+  $id('radio-mute').classList.toggle('muted',Radio.muted);
+  $id('pr-mute').innerHTML=Radio.muted?VOL_OFF:VOL_ON;
+  $id('pr-mute').classList.toggle('muted',Radio.muted);
   $id('pr-name').textContent=Radio.STATIONS[Radio.station].name.split('·')[0].trim();
   $id('pr-sub').textContent=RADIO_SUBS[Radio.station%RADIO_SUBS.length];
 }

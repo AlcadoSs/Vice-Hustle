@@ -266,6 +266,9 @@ button{font-family:inherit;cursor:pointer}
   color:#ffd9ec;border:1px solid rgba(255,46,136,.55);background:rgba(20,16,28,.85);transition:background .15s}
 #radio button:hover{background:rgba(255,46,136,.18)}
 #radio button svg{width:14px;height:14px}
+/* loud muted state, shared by floating + phone radio */
+#radio-mute.muted,.r-btn.muted{color:#ff5d7a;border-color:#ff2e55;background:rgba(193,18,47,.25);
+  box-shadow:0 0 12px rgba(255,46,80,.5)}
 #radio-face{min-width:150px;text-align:center;line-height:1.05}
 #radio-name{font-family:var(--led);font-size:17px;color:var(--teal);text-shadow:0 0 8px rgba(22,224,189,.7)}
 #radio-sub{font-family:var(--led);font-size:13px;color:#9d8cc4}
@@ -479,9 +482,11 @@ body.phone-open #phone{transform:none;visibility:visible;transition:transform .2
   .led{min-width:96px;padding:2px 8px}
   .led b{font-size:20px}
   #heist-btn{bottom:130px;left:10px;right:auto;padding:12px 18px}
-  #radio{display:flex}
-  #radio-face{min-width:104px}
+  #radio{display:flex;left:0;right:0;bottom:0;width:100%;border-radius:0;
+    border:none;border-top:2px solid rgba(255,46,136,.6);padding:9px 12px;justify-content:center;gap:12px}
+  #radio-face{min-width:112px}
   #radio-name{font-size:14px}
+  #game{padding-bottom:56px}
 }
 @media (prefers-reduced-motion: reduce){
   .district-bg.show,#tf-badge,#raid-flash,#heist-btn.ready{animation:none !important}
