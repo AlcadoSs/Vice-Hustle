@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Righteous&family=VT323&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="theme-color" content="#1A0B2E">
-<link rel="stylesheet" href="game.css?v=20261124">
+<link rel="stylesheet" href="game.css?v=20261125">
 </head>
 <body>
 
@@ -95,6 +95,7 @@
     <button id="radio-mute" title="Mute"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></button>
   </div>
   <div id="raid-banner" hidden>&#9888; RAID INBOUND <span id="raid-count"></span></div>
+  <div id="event-banner" hidden><span id="event-name"></span> <span id="event-count"></span></div>
 </div>
 
 <!-- ============ OVERLAYS ============ -->
@@ -147,6 +148,7 @@
     <div class="p-screen">
       <div id="scr-home" class="on">
         <div class="p-greet" id="p-greet">PALMETTO CITY · 1986</div>
+        <div id="today-strip"></div>
         <div class="app-grid">
           <button class="app" data-app="queens"><span class="badge" id="bdg-queens" hidden></span>
             <svg class="ico ic" viewBox="0 0 24 24"><path d="M4 18h16M5 18l-1.5-9L9 13l3-7 3 7 5.5-4L19 18"/></svg><span class="lbl">QUEENS</span></button>
@@ -190,6 +192,6 @@
 </aside>
 
 <script src="radio.js?v=20261120"></script>
-<script src="game.js?v=20261124"></script>
+<script src="game.js?v=20261125"></script>
 </body>
 </html>

@@ -170,7 +170,7 @@ function defaultState(){
     respect:0, respectGranted:0, spent:{empire:0,laundry:0,whisper:0,kick:0},
     vault:{}, lieuts:{}, lastSal:0, era:1,
     radio:{st:0,muted:true}, stills:false, acts:{races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0},
-    queens:{}, inspiredUntil:0, nightCd:0, mile:{},
+    queens:{}, inspiredUntil:0, nightCd:0, mile:{}, ev:null, daily:null,
     msgs:[], unreadMsgs:0, msgBuff:null, deploy:{},
     heistReadyAt:0, frenzy:0, ts:Date.now(),
     stats:{dirty:0,clean:0,raids:0,heists:0},
@@ -229,6 +229,7 @@ function globalMult(){
   if(S.era===2)m*=5; else if(S.era===3)m*=25;
   if(S.frenzy>now()||S.inspiredUntil>now())m*=2;
   if(msgBuffActive('solana')||msgBuffActive('destiny'))m*=1.1;
+  if(evActive('tourist'))m*=1.5;
   if(S.tf)m*=.75;
   return m;
 }
@@ -248,6 +249,7 @@ function washOf(r){
   if(has('betty'))w*=1.25;
   if(has('tang'))w*=1.05;
   if(msgBuffActive('vivienne'))w*=1.1;
+  if(evActive('payday'))w*=1.5;
   return w;
 }
 function districtRackets(d){ return RACKETS.filter(r=>r.d===d); }
@@ -263,9 +265,10 @@ function totalIncome(){ let x=0; for(const d of DISTRICTS){ if(d.id>S.unlocked)b
 function totalHeat(){
   let x=0;
   for(const d of DISTRICTS){ if(d.id>S.unlocked)break; for(const r of visibleRackets(d.id)) x+=heatOf(r); }
-  x*=Math.pow(.92,S.spent.whisper);              // Whisper legacy
-  if(rs('security').n>0)x*=.7;                    // Private Security Firm
-  return x;
+    x*=Math.pow(.92,S.spent.whisper);              // Whisper legacy
+    if(rs('security').n>0)x*=.7;                    // Private Security Firm
+    if(evActive('crackdown'))x*=1.75;               // random event
+    return x;
 }
 function totalWash(){ let x=0; for(const d of DISTRICTS){ if(d.id>S.unlocked)break; for(const r of visibleRackets(d.id)) if(r.front) x+=washOf(r); } return x; }
 function decayRate(){
@@ -294,6 +297,8 @@ function load(){
     S.lieuts=d.lieuts||{}; S.vault=d.vault||{};
     S.radio=Object.assign({st:0,muted:true},d.radio);
     S.stills=!!d.stills;
+    S.ev=d.ev&&d.ev.until>now()?d.ev:null; // expired events never survive a reload
+    S.daily=d.daily&&d.daily.date?d.daily:null;
     S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0},d.acts);
     S.queens=d.queens||{};
     S.mile=d.mile||{};
@@ -323,6 +328,118 @@ function checkLieuts(){
     }
   }
   if(hired&&$id('scr-crew').classList.contains('on'))renderCrewApp();
+}
+
+/* ---------------- RANDOM EVENTS ---------------- */
+const EVENTS={
+  crackdown:{name:'POLICE CRACKDOWN', dur:75, line:'COPS ARE SWEEPING THE STREETS — HEAT RISING ×1.75'},
+  tourist:  {name:'TOURIST SEASON',   dur:120,line:'TOURIST SEASON — THE CITY IS SPENDING · INCOME ×1.5'},
+  payday:   {name:'PAYDAY RUSH',      dur:90, line:'PAYDAY RUSH — THE WASH RUNS HOT ×1.5'},
+};
+function evActive(type){ return S.ev&&S.ev.until>now()&&S.ev.type===type; }
+let sessionStart=0;
+function maybeEvent(){
+  if(S.ev){ if(S.ev.until<=now())endEvent(); return; }
+  if(isPaused()||!sessionStart||now()-sessionStart<60e3)return;
+  if(Math.random()>1/1200)return; // per-tick roll → roughly one event per 4 unpaused minutes
+  const types=Object.keys(EVENTS);
+  startEvent(types[Math.floor(Math.random()*types.length)]);
+}
+function startEvent(type){
+  const e=EVENTS[type]; if(!e)return;
+  S.ev={type,until:now()+e.dur*1000};
+  updateEventBanner();
+  toast(e.name+' — '+e.dur+'s');
+  window.Radio&&Radio.sfx.blip(type==='crackdown'?300:880);
+  msgFrom('kmr','event_'+type);
+  const el=$id('ticker-text');
+  el.style.animation='none'; void el.offsetWidth; el.style.animation='';
+  el.textContent='DJ KRM · WPLM 103.5 — '+e.line;
+  save();
+}
+function endEvent(){
+  const type=S.ev?S.ev.type:null;
+  S.ev=null;
+  updateEventBanner();
+  toast(type==='crackdown'?'THE SWEEP LET UP':'THE MOMENT PASSED');
+}
+function updateEventBanner(){
+  const b=$id('event-banner'); if(!b)return;
+  if(!S.ev||S.ev.until<=now()){ if(!b.hidden)b.hidden=true; return; }
+  const e=EVENTS[S.ev.type];
+  b.className=S.ev.type; b.hidden=false;
+  $id('event-name').textContent=e.name;
+  const secs=Math.ceil((S.ev.until-now())/1000)+'s';
+  if($id('event-count').textContent!==secs)$id('event-count').textContent=secs;
+}
+
+/* ---------------- DAILY CHALLENGES ---------------- */
+const DAILY_RP=2, DAILY_BONUS=3;
+const DAILY_POOL=[
+  {id:'races',  name:'BURN RUBBER',  goal:3, d:'run 3 races — street or swamp'},
+  {id:'heists', name:'MAKE IT COUNT',goal:2, d:'clear 2 heists'},
+  {id:'scratch',name:'LUCKY STREAK', goal:3, d:'scratch 3 tickets'},
+  {id:'casino', name:'HOT HAND',     goal:2, d:'win 2 blackjack hands'},
+  {id:'rackets',name:'EXPAND',       goal:5, d:'buy 5 racket fronts'},
+  {id:'wash',   name:'CLEAN SWEEP',  goal:0, d:'launder a stack of cash', money:true},
+  {id:'raid',   name:'IRON CURTAIN', goal:1, d:'survive a raid'},
+  {id:'night',  name:'NIGHT OUT',    goal:1, d:'take a Queen out on the town'},
+];
+function todayKey(){ const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function dailyCheck(){
+  const k=todayKey();
+  if(S.daily&&S.daily.date===k)return;
+  // deterministic per-date pick: hashing the date means reloads can't reshuffle today's board
+  let h=0; for(const c of k)h=(h*31+c.charCodeAt(0))>>>0;
+  const idx=[...DAILY_POOL.keys()], pick=[];
+  for(let i=0;i<3;i++){ h=(h*1103515245+12345)>>>0; pick.push(idx.splice(h%idx.length,1)[0]); }
+  const tasks=pick.map(i=>{ const t=DAILY_POOL[i];
+    return {id:t.id, goal:t.money?Math.max(5000,Math.round(totalIncome()*600)):t.goal, prog:0, done:false}; });
+  const had=!!S.daily;
+  S.daily={date:k,tasks,bonus:false};
+  if(had)save();
+}
+let todayRenderAt=0;
+function dailyBump(key,n){
+  if(!S.daily||!n||n<=0)return;
+  let changed=false, completed=false;
+  for(const t of S.daily.tasks){
+    if(t.id!==key||t.done)continue;
+    t.prog=Math.min(t.goal,t.prog+n);
+    if(t.prog>=t.goal){
+      t.done=true; S.respect+=DAILY_RP; completed=true;
+      const def=DAILY_POOL.find(p=>p.id===key);
+      toast('DAILY DONE — '+def.name+' · +'+DAILY_RP+' RP');
+      window.Radio&&Radio.sfx.fanfare();
+      if(S.daily.tasks.every(x=>x.done)&&!S.daily.bonus){
+        S.daily.bonus=true; S.respect+=DAILY_BONUS;
+        setTimeout(()=>{ toast('ALL DAILIES DONE — +'+DAILY_BONUS+' RP BONUS'); window.Radio&&Radio.sfx.fanfare(); },1200);
+      }
+    }
+    changed=true;
+  }
+  if(!changed)return;
+  // wash ticks arrive 5x/s — throttle the strip re-render, and only persist on completions
+  if(completed||now()-todayRenderAt>900){ todayRenderAt=now(); renderTodayStrip(); }
+  if(completed)save();
+}
+function renderTodayStrip(){
+  const host=$id('today-strip'); if(!host||!S.daily){ if(host)host.innerHTML=''; return; }
+  const done=S.daily.tasks.filter(t=>t.done).length;
+  let html=`<div class="td-head"><span>TODAY</span><span>${done}/3</span></div>`;
+  for(const t of S.daily.tasks){
+    const def=DAILY_POOL.find(p=>p.id===t.id); if(!def)continue;
+    const cur=def.money?$$(t.prog):t.prog, goal=def.money?$$(t.goal):t.goal;
+    html+=`<div class="td-row${t.done?' done':''}">
+      <span class="td-name">${def.name}</span>
+      <span class="td-bar"><i style="width:${Math.min(100,t.goal?100*t.prog/t.goal:100)}%"></i></span>
+      <span class="td-prog">${t.done?'DONE':cur+' / '+goal}</span>
+      <span class="td-rp">+${DAILY_RP} RP</span>
+    </div>`;
+  }
+  html+=`<div class="td-bonus">${S.daily.bonus?'BONUS COLLECTED':'CLEAR ALL THREE — +'+DAILY_BONUS+' RP BONUS'}</div>`;
+  host.innerHTML=html;
 }
 
 /* ---------------- RENDER ---------------- */
@@ -433,7 +550,7 @@ $id('cards').addEventListener('click',e=>{
   if(k<1){toast('NOT ENOUGH DIRTY CASH');return;}
   const cost=costOf(r,k);
   if(S.dirty<cost){toast('NOT ENOUGH DIRTY CASH');return;}
-  S.dirty-=cost; rs(id).n+=k;
+  S.dirty-=cost; rs(id).n+=k; dailyBump('rackets',k);
   window.Radio&&Radio.sfx.chaChing();
   updateCards(now()); checkLieuts();
 });
@@ -540,7 +657,7 @@ function raidLogic(dt,t){
 function doRaid(t){
   lastRaidAt=t; pendingRaidAt=0; $id('raid-banner').hidden=true;
   const pct=.2+Math.random()*.2; let stolen=S.dirty*pct;
-  S.dirty-=stolen; S.stats.raids++;
+  S.dirty-=stolen; S.stats.raids++; dailyBump('raid',1);
   // Sal Marchetti: first raid each hour, 50% refunded
   if(has('sal')&&t-S.lastSal>3600e3){ S.dirty+=stolen*.5; S.lastSal=t; toast('SAL MADE A CALL — HALF YOUR CASH CAME BACK'); }
   const pool=RACKETS.filter(r=>r.d<=S.unlocked&&!r.front&&rs(r.id).n>0&&rs(r.id).lock<=t);
@@ -899,7 +1016,7 @@ function endHeist(){
     if(perf>=1)msg+='<br><span class="teal">CLEAN GETAWAY.</span>';
     if(d.h.kind==='con'&&d.hits===0){S.heat=clamp(S.heat+10,0,100);msg+='<br>+10 HEAT · they saw your face.';}
   }
-  S.stats.heists++;
+  S.stats.heists++; if(!busted)dailyBump('heists',1);
   let firstClear=false;
   if(!busted&&!S.vault[d.h.id]){ S.vault[d.h.id]=true; firstClear=true; }
   $id('heist-play').innerHTML='';
@@ -1062,7 +1179,7 @@ function openStreetRace(){
   if(now()<S.acts.scd){toast('THE STRIP NEEDS A BREATH — '+mmss((S.acts.scd-now())/1000));return;}
   const stake=actStake();
   if(S.dirty<stake){toast('NEED '+$$(stake)+' DIRTY TO ENTER');return;}
-  S.dirty-=stake; S.acts.races++; S.acts.scd=now()+RACE_CD;
+  S.dirty-=stake; S.acts.races++; S.acts.scd=now()+RACE_CD; dailyBump('races',1);
   modal('STREET RACE · NIGHT DRAG',
     `<div id="tree"><i></i><i></i><i></i><i></i></div>
      <div id="tach"><svg viewBox="0 0 230 130">
@@ -1225,7 +1342,7 @@ function openGatorRace(){
   });
 }
 function runSwamp(pick,stake){
-  S.dirty-=stake; S.acts.races++; S.acts.gcd=now()+RACE_CD;
+  S.dirty-=stake; S.acts.races++; S.acts.gcd=now()+RACE_CD; dailyBump('races',1);
   const lanes=[10,33,56,79];
   modal('GATOR RACES · SWAMP TRACK',
     `<div id="swamp">
@@ -1292,7 +1409,7 @@ let tkt=null;
 function openScratch(){
   const cost=Math.max(500,Math.round(totalIncome()*30));
   if(S.dirty<cost){toast('NEED '+$$(cost)+' DIRTY');return;}
-  S.dirty-=cost; S.acts.scratch++;
+  S.dirty-=cost; S.acts.scratch++; dailyBump('scratch',1);
   const bag=[]; TKT_WEIGHTS.forEach((w,i)=>{for(let k=0;k<w;k++)bag.push(i);});
   const cells=Array.from({length:9},()=>bag[Math.floor(Math.random()*bag.length)]);
   const serial='N'+String(100000+Math.floor(Math.random()*900000));
@@ -1452,6 +1569,15 @@ const MSG_POOLS={
   taskForce:{
     sal:['LAY LOW. I\'m serious. Task Force means Task Force. Turn everything off. 💼','This is bad. This is very bad. I\'m making calls. STAY INSIDE.'],
     ghost:['The city has teeth tonight. Disappear.','They know your face. Change it.'],
+  },
+  event_crackdown:{
+    kmr:['Word from the scanner: EVERYTHING is heat right now. Cool it or lose it. DJ KRM, watching the watchmen. 📻','Blue lights on every corner, city-wide. If it\'s dirty, it\'s a target tonight. 📻'],
+  },
+  event_tourist:{
+    kmr:['The snowbirds landed and the wallets are OPEN. Everything sells in tourist season, baby. 📻','Beach is wall-to-wall and cash is falling out of fanny packs. Run it up. 📻'],
+  },
+  event_payday:{
+    kmr:['First of the month energy — the whole city just got paid and your wash runs HOT. 📻','Payday rush, people. Fresh checks, fresh mistakes. The laundromat never sleeps. 📻'],
   },
   districtUnlock:{
     kmr:['NEW TURF just opened up in Palmetto City and somebody\'s already moving in. This is DJ KRM, signing your lease. 📻','The map just got BIGGER. New money, new problems. You know the vibe. 📻'],
@@ -1703,6 +1829,7 @@ const SVGS={
 function showApp(name){
   document.querySelectorAll('#phone .scr').forEach(s=>s.classList.toggle('on',s.id==='scr-'+name));
   $id('scr-home').classList.toggle('on',name==='home');
+  if(name==='home')renderTodayStrip();
   if(name!=='vault')stopVaultVideos();
   window.Radio&&Radio.sfx.tick();
   if(name==='queens')renderQueensApp();
@@ -1793,7 +1920,7 @@ function renderQueensApp(){
     if(S.inspiredUntil>now()||S.nightCd>now())return;
     if(!Object.keys(S.queens).length){toast('THE QUEENS DON\'T RUN WITH STRANGERS');return;}
     if(S.dirty<cost){toast('NOT ENOUGH DIRTY CASH');return;}
-       S.dirty-=cost; S.inspiredUntil=now()+60000; S.nightCd=now()+600000;
+       S.dirty-=cost; S.inspiredUntil=now()+60000; S.nightCd=now()+600000; dailyBump('night',1);
        const q=QUEENS.filter(x=>S.queens[x.id]);
        const picked=q[q.length?Math.floor(Math.random()*q.length):0];
        toast(NIGHT_LINES[q.length?Math.floor(Math.random()*q.length):0]);
@@ -1953,7 +2080,7 @@ function bjSettle(){
   else if(d>21){ pay=staked*2*cam; txt='DEALER BUSTS — YOU WIN'; cls='win'; }
   else if(p>d){ pay=staked*2*cam; txt='YOU WIN'; cls='win'; }
   else if(p===d){ pay=staked; txt='PUSH — STAKE RETURNED'; cls='push'; }
-  if(pay>0){ S.dirty+=pay; if(pay>staked){ S.acts.bjwins++; payToast(pay-staked); window.Radio&&Radio.sfx.chaChing(); } }
+  if(pay>0){ S.dirty+=pay; if(pay>staked){ S.acts.bjwins++; dailyBump('casino',1); payToast(pay-staked); window.Radio&&Radio.sfx.chaChing(); } }
   bjRender();
   $id('bj-ctl').innerHTML=`<div class="bj-result ${cls}">${txt}${pay>staked?' — +'+$$(pay-staked):pay>0?'':' — −'+$$(staked)}</div>
     <button class="bj-btn gold" id="bj-done">COLLECT</button>`;
@@ -2242,7 +2369,7 @@ function sim(dt,t){
   const inc=totalIncome()*dt;
   if(inc>0){ S.dirty+=inc; S.stats.dirty+=inc; }
   const conv=Math.min(totalWash()*dt,S.dirty);
-  if(conv>0){ S.dirty-=conv; S.clean+=conv; S.stats.clean+=conv; }
+  if(conv>0){ S.dirty-=conv; S.clean+=conv; S.stats.clean+=conv; dailyBump('wash',conv); }
   const net=totalHeat()-decayRate();
   S.heat=clamp(S.heat+net*dt,0,100);
   if(S.heat>=100&&!S.tf){ S.tf=true; toast('TASK FORCE! INCOME −25% UNTIL HEAT < 50');
@@ -2259,12 +2386,16 @@ setInterval(()=>{
     // state checks are pure + idempotent: they run even while the phone pauses the sim,
     // so "joined the crew" moments don't wait for you to close the menu
     checkLieuts(); checkQueens(); checkMilestones();
+    maybeEvent(); dailyCheck(); updateEventBanner();
     updateCards(t); updateHUD(t); updateLedger(); updateHeistBtn(t); updateBadges();
   }
 },TICK_MS);
-setInterval(()=>{ if(started){ tickIdx=(tickIdx+1)%TICKER.length;
+setInterval(()=>{ if(started){
   const el=$id('ticker-text');
   el.style.animation='none'; void el.offsetWidth; el.style.animation='';
+  // an active event owns the airwaves; otherwise the usual KRM patter
+  if(S.ev&&S.ev.until>now()){ el.textContent='DJ KRM · WPLM 103.5 — '+EVENTS[S.ev.type].line; return; }
+  tickIdx=(tickIdx+1)%TICKER.length;
   el.textContent='DJ KRM · WPLM 103.5 — '+TICKER[tickIdx];
 }},12000);
 setInterval(()=>{ if(started)save(); },5000);
@@ -2274,7 +2405,7 @@ window.addEventListener('beforeunload',()=>{ if(started)save(); });
 function startGame(cont){
   $id('title-screen').style.display='none';
   $id('game').hidden=false;
-  started=true;
+  started=true; sessionStart=now();
   // some browsers gate muted autoplay until a real gesture — retry on first interaction
   $id('game').addEventListener('pointerdown',()=>{ const v=$id('bg-video'); if(v.src&&v.paused)v.play().catch(()=>{}); },{once:false});
   applyDistrict(); renderUpgrades(); updateCards(now()); updateHUD(now()); updateLedger();
@@ -2290,6 +2421,7 @@ function boot(){
     scheduleRaid, doRaid, openHeistPick, startHeist, strike, closeHeist, save,
     totalIncome, totalHeat, totalWash, doPrestige,
     checkQueens, openStreetRace, openGatorRace, openScratch, openBlackjack, bribeCost,
+    startEvent, dailyBump, dailyCheck,
     get Radio(){return window.Radio;},
   };
   if(reducedMotion()){ $id('title-video').hidden=true; $id('title-poster').hidden=false; }
