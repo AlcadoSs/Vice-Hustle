@@ -778,30 +778,56 @@ function ctRound(){
     window.Radio&&Radio.sfx.blip(760);
     drillTO=setTimeout(()=>{
       cards.forEach(c=>c.classList.remove('up'));
-      // shuffle: 3 swaps with visual motion
+      // shuffle: sequential swaps, then double-swaps at ★★+
       d.phase='shuffle';
       const slots=[0,1,2,3];
       let swaps=0;
+      const seqCount=2+Math.floor(Math.random()*2);
+      const dblCount=d.h.risk>=2?1+Math.floor(Math.random()*2):0;
       const doSwap=()=>{
         if(!drill||drill.over)return;
         const a=Math.floor(Math.random()*4), b=Math.floor(Math.random()*4);
         if(a===b){doSwap();return;}
-        // animate: swap translateX
-        const ca=cards[slots[a]], cb=cards[slots[b]];
-        const w=ca.offsetWidth+12;
-        const dirA=slots[a]<slots[b]?1:-1;
-        ca.style.transform=`translateX(${dirA*w*(slots[b]-slots[a])}px)`;
-        cb.style.transform=`translateX(${-dirA*w*(slots[b]-slots[a])}px)`;
-        window.Radio&&Radio.sfx.tick();
+        animateSwap(slots,a,b);
         [slots[a],slots[b]]=[slots[b],slots[a]];
+        window.Radio&&Radio.sfx.tick();
+        swaps++;
+        if(swaps<seqCount)drillTO=setTimeout(doSwap,120);
+        else if(dblCount>0)drillTO=setTimeout(doDoubleSwap,380);
+        else finishShuffle();
+      };
+      const doDoubleSwap=()=>{
+        if(!drill||drill.over)return;
+        // two disjoint pairs swap simultaneously
+        const p1=[0,1,2,3].sort(()=>Math.random()-.5);
+        const a=p1[0],b=p1[1],c2=p1[2],e=p1[3];
+        animateSwap(slots,a,b);
+        animateSwap(slots,c2,e);
+        [slots[a],slots[b]]=[slots[b],slots[a]];
+        [slots[c2],slots[e]]=[slots[e],slots[c2]];
+        window.Radio&&Radio.sfx.blip(520);
+        swaps++;
+        if(swaps<seqCount+dblCount)drillTO=setTimeout(doDoubleSwap,400);
+        else finishShuffle();
+      };
+      const finishShuffle=()=>{
+        if(!drill||drill.over)return;
+        d.phase='pick'; d.money=slots.indexOf(d.money);
+        $id('ct-help').textContent='Where did it go? PICK.';
+      };
+      function animateSwap(sl,i,j){
+        const ca=cards[sl[i]], cb=cards[sl[j]];
+        if(!ca||!cb)return;
+        const w=ca.offsetWidth+12;
+        const dir=sl[i]<sl[j]?1:-1;
+        const dist=w*Math.abs(sl[j]-sl[i]);
+        ca.style.transform=`translateX(${dir*dist}px)`;
+        cb.style.transform=`translateX(${-dir*dist}px)`;
         drillTO=setTimeout(()=>{
           ca.style.transform=''; cb.style.transform='';
-          // reorder DOM to match slots
           tbl.innerHTML=''; slots.forEach(s=>tbl.appendChild(cards[s]));
-          if(++swaps<(2+Math.floor(Math.random()*2)))drillTO=setTimeout(doSwap,120);
-          else{ d.phase='pick'; d.money=slots.indexOf(d.money); $id('ct-help').textContent='Where did it go? PICK.'; }
         },320);
-      };
+      }
       drillTO=setTimeout(doSwap,450);
     },1000);
   },600+Math.random()*400);
