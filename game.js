@@ -8,7 +8,7 @@
 
 /* ---------------- CONFIG ---------------- */
 const SAVE_KEY='vice-hustle-save', SAVE_VER=3;
-const TICK_MS=200, HEIST_FIRST_S=180, HEIST_EVERY_S=300, RAID_COOLDOWN_S=25;
+const TICK_MS=200, HEIST_FIRST_S=0, HEIST_EVERY_S=0, RAID_COOLDOWN_S=25;
 const OFFLINE_CAP_S=8*3600, OFFLINE_MIN_S=90;
 
 const DISTRICTS=[
@@ -661,7 +661,7 @@ function dialStrike(){
 let chaseTO=0;
 const BARRIER_SVG='<svg viewBox="0 0 40 26"><rect x="2" y="8" width="36" height="16" rx="2" fill="#1a0b2e" stroke="#ff2e55" stroke-width="2"/><path d="M6 8l7 16M14 8l7 16M22 8l7 16M30 8l7 16" stroke="#ffd977" stroke-width="3"/></svg>';
 function startChase(h,base){
-  const durMs=(15*(has('ray')?1.25:1))*1000;
+  const durMs=(10*(has('ray')?1.25:1))*1000;
   Object.assign(base,{lane:'top',gap:170,dur:durMs,t0:Date.now(),obs:[],nextSpawn:0,scroll:0});
   $id('heist-play').innerHTML=`
     <div id="chase-stage">
@@ -670,8 +670,7 @@ function startChase(h,base){
       <img id="ch-you" class="ch-car" alt="" style="top:56%;left:30%">
     </div>
     <div id="chase-stats">CRASHES <b class="red">0</b>/3 · TAP TO WEAVE</div>
-    <div id="ct-help">Tap the TOP or BOTTOM half of the strip to switch lanes.<br>Survive ${Math.round(durMs/1000)}s. 3 crashes and they cuff you.</div>`;
-  keyedCar('art/cars/player.jpg',u=>{const el=$id('ch-you');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
+    <div id="ct-help">Tap the TOP or BOTTOM half of the strip to switch lanes.<br>Survive ${Math.round(durMs/1000)}s. 3 crashes and they cuff you.</div>`;  keyedCar('art/cars/player.jpg',u=>{const el=$id('ch-you');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
   keyedCar('art/cars/police.jpg',u=>{const el=$id('ch-police');if(el)el.src=u||CAR_SIDE('#1c1132','#58f7ff');});
   const stage=$id('chase-stage');
   stage.onpointerdown=e=>{
@@ -857,10 +856,9 @@ function endHeist(){
   checkLieuts(); checkQueens();
 }
 function closeHeist(){
-  cancelAnimationFrame(drillRAF); drill=null; clearTimeout(drillTO);
+  cancelAnimationFrame(drillRAF); drill=null; clearTimeout(drillTO); clearInterval(chaseTO);
   $id('heist-modal').hidden=true;
-  $id('drill-stats').hidden=false; $id('heist-help').hidden=false;
-  S.heistReadyAt=now()+HEIST_EVERY_S*1000;
+  S.heistReadyAt=0; // heists are always ready
   updateHeistBtn(now());
 }
 $id('heist-modal').addEventListener('click',e=>{
