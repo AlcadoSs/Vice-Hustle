@@ -1516,12 +1516,13 @@ function renderPulseApp(){
     $id('pulse-body').innerHTML='<div class="msg-sys">No messages yet. Go make some noise. 📡</div>';
     return;
   }
-  let html='';
+  let html=`<div style="text-align:right;margin-bottom:8px"><button class="pulse-clear" id="pulse-clear-all">CLEAR ALL</button></div>`;
   for(const m of S.msgs){
     const c=MSG_CHAR[m.from]||MSG_CHAR.system;
     const ago=Math.max(0,Math.round((now()-m.ts)/60000));
     const timeStr=ago<1?'now':ago<60?ago+'m':Math.floor(ago/60)+'h';
-    html+=`<div class="msg-card ${m.read?'':'unread'}" data-ts="${m.ts}">
+    html+=`<div class="msg-card ${m.read?'':'unread'}" data-ts="${m.ts}" style="position:relative">
+      <button class="msg-del" data-ts="${m.ts}" title="Delete">×</button>
       <div class="msg-ava">${c.em}${c.pic?`<img src="${c.pic}" alt="">`:''}</div>
       <div class="msg-main">
         <div class="msg-top"><span class="msg-name">${c.name}</span><span class="msg-time">${timeStr}</span></div>
@@ -1537,6 +1538,25 @@ function renderPulseApp(){
     </div>`;
   }
   $id('pulse-body').innerHTML=html;
+  // wire delete single
+  $id('pulse-body').querySelectorAll('.msg-del').forEach(btn=>{
+    btn.onclick=()=>{
+      const ts=+btn.dataset.ts;
+      S.msgs=S.msgs.filter(m=>m.ts!==ts);
+      if(!S.msgs.find(m=>m.ts===ts&&!m.read))S.unreadMsgs=Math.max(0,S.unreadMsgs-1);
+      updateBadges();
+      window.Radio&&Radio.sfx.tick();
+      renderPulseApp();
+    };
+  });
+  // wire clear all
+  const clearBtn=$id('pulse-clear-all');
+  if(clearBtn)clearBtn.onclick=()=>{
+    S.msgs=[];S.unreadMsgs=0;
+    updateBadges();
+    window.Radio&&Radio.sfx.tick();
+    renderPulseApp();
+  };
   // wire replies
   $id('pulse-body').querySelectorAll('.msg-reply').forEach(btn=>{
     btn.onclick=()=>{
