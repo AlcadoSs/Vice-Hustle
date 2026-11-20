@@ -169,7 +169,7 @@ function defaultState(){
     unlocked:1, active:1, r:{}, up:{lawyer:0,scanner:0,washers:0},
     respect:0, respectGranted:0, spent:{empire:0,laundry:0,whisper:0,kick:0},
     vault:{}, lieuts:{}, lastSal:0, era:1,
-    radio:{st:0,muted:false}, acts:{races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},
+    radio:{st:0,muted:true}, acts:{races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},
     queens:{}, inspiredUntil:0, nightCd:0, mile:{},
     heistReadyAt:0, frenzy:0, ts:Date.now(),
     stats:{dirty:0,clean:0,raids:0,heists:0},
@@ -277,7 +277,7 @@ function load(){
     S.spent=Object.assign({empire:0,laundry:0,whisper:0,kick:0},d.spent);
     S.stats=Object.assign({dirty:0,clean:0,raids:0,heists:0},d.stats);
     S.lieuts=d.lieuts||{}; S.vault=d.vault||{};
-    S.radio=Object.assign({st:0,muted:false},d.radio);
+    S.radio=Object.assign({st:0,muted:true},d.radio);
     S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,scd:0,gcd:0},d.acts);
     S.queens=d.queens||{};
     S.mile=d.mile||{};
