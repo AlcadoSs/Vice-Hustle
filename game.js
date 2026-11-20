@@ -918,8 +918,10 @@ function ctRound(){
       const dblCount=d.h.risk>=3?2:d.h.risk===2?1:0;
       const doSwap=()=>{
         if(!drill||drill.over)return;
-        const a=Math.floor(Math.random()*4), b=Math.floor(Math.random()*4);
-        if(a===b){doSwap();return;}
+        // dealer reach: neighbor slot (70%) or one-over (30%) — cards never fly across the whole row
+        const a=Math.floor(Math.random()*4), d=Math.random()<.7?1:2;
+        const dests=[]; if(a-d>=0)dests.push(a-d); if(a+d<=3)dests.push(a+d);
+        const b=dests[Math.floor(Math.random()*dests.length)];
         animateSwap(slots,a,b);
         [slots[a],slots[b]]=[slots[b],slots[a]];
         window.Radio&&Radio.sfx.tick();
@@ -930,13 +932,12 @@ function ctRound(){
       };
       const doDoubleSwap=()=>{
         if(!drill||drill.over)return;
-        // two disjoint pairs swap simultaneously
-        const p1=[0,1,2,3].sort(()=>Math.random()-.5);
-        const a=p1[0],b=p1[1],c2=p1[2],e=p1[3];
-        animateSwap(slots,a,b);
-        animateSwap(slots,c2,e);
-        [slots[a],slots[b]]=[slots[b],slots[a]];
-        [slots[c2],slots[e]]=[slots[e],slots[c2]];
+        // two disjoint pairs, near pairings only: [0,1]+[2,3] or [0,2]+[1,3] — never the far 0<->3 reach
+        const pairs=Math.random()<.5?[[0,1],[2,3]]:[[0,2],[1,3]];
+        for(const [a,b] of pairs){
+          animateSwap(slots,a,b);
+          [slots[a],slots[b]]=[slots[b],slots[a]];
+        }
         window.Radio&&Radio.sfx.blip(520);
         swaps++;
         if(swaps<seqCount+dblCount)drillTO=setTimeout(doDoubleSwap,680);
