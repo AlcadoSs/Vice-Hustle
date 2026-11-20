@@ -389,26 +389,34 @@ function updateCards(t){
   for(const r of list){
     const c=cardRefs[r.id]; if(!c)continue;
     const st=rs(r.id);
-    c.owned.textContent=st.n?' ×'+st.n:'';
+    // dirty-check: only touch DOM when values changed (kills 200ms churn / click jank)
+    const ownedTxt=st.n?' ×'+st.n:'';
+    if(c._o!==ownedTxt){c._o=ownedTxt;c.owned.textContent=ownedTxt;}
+    let sHTML;
     if(r.front){
-      c.stats.innerHTML=st.n?`<span class="wash">WASH +${$$(washOf(r))}/s</span>`:`<span class="wash">WASH +${$$(r.lau*(1+.5*S.up.washers)*(1+.15*S.spent.laundry))}/s each</span>`;
+      sHTML=st.n?`<span class="wash">WASH +${$$(washOf(r))}/s</span>`:`<span class="wash">WASH +${$$(r.lau*(1+.5*S.up.washers)*(1+.15*S.spent.laundry))}/s each</span>`;
     }else{
-      c.stats.innerHTML=st.n
+      sHTML=st.n
         ?`${$$(incomeOf(r))}/s · <span class="heat-up">+${heatOf(r).toFixed(2)} heat/s</span>`
         :`${$$(r.inc*globalMult()*distMult(r.d))}/s each${r.heat
             ?` · <span class="heat-up">+${r.heat} heat/s</span>`
             :` · <span class="teal">COOLS THE CITY −30%</span>`}`;
     }
+    if(c._s!==sHTML){c._s=sHTML;c.stats.innerHTML=sHTML;}
     const nm=nextMile(st.n);
-    c.bar.style.width=(nm===Infinity?100:clamp(st.n/nm*100,0,100))+'%';
+    const bw=(nm===Infinity?100:clamp(st.n/nm*100,0,100))+'%';
+    if(c._b!==bw){c._b=bw;c.bar.style.width=bw;}
     let k=mult==='max'?Math.max(1,maxAfford(r,S.dirty)):(mult==='10'?10:1);
-    const cost=costOf(r,k), can=S.dirty>=cost&&(mult!=='max'||maxAfford(r,S.dirty)>=1);
-    c.buy.innerHTML=`BUY ×${k}<b>${$$(cost)}</b>`;
-    c.buy.disabled=!can;
+    const cost=costOf(r,k);
+    const bt=`BUY ×${k}<b>${$$(cost)}</b>`;
+    if(c._bt!==bt){c._bt=bt;c.buy.innerHTML=bt;}
+    const can=S.dirty>=cost&&(mult!=='max'||maxAfford(r,S.dirty)>=1);
+    if(c._c!==can){c._c=can;c.buy.disabled=!can;}
     if(st.lock>t){
-      c.lock.hidden=false;
-      c.lock.innerHTML=`🔒 COLD ${Math.ceil((st.lock-t)/1000)}s`;
-    }else c.lock.hidden=true;
+      const lt=`🔒 COLD ${Math.ceil((st.lock-t)/1000)}s`;
+      if(c._lt!==lt){c._lt=lt;c.lock.innerHTML=lt;}
+      if(c._lh!==false){c._lh=false;c.lock.hidden=false;}
+    }else if(c._lh!==true){c._lh=true;c.lock.hidden=true;}
   }
 }
 $id('cards').addEventListener('click',e=>{
