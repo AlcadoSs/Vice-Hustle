@@ -1013,7 +1013,7 @@ function endDrag(){
          <p class="led-line" style="color:var(--teal)">TAKE THE STRIP — ${$$(pay)} DIRTY!</p>`
       : `<div id="race-led">${Math.round(r.mph)} MPH</div>
          <p class="led-line" style="color:#ff5d7a">OUT-DRAGGED. TAILLIGHTS. THE STAKE'S GONE.</p>`,
-      [{label:'COLLECT',cls:'btn-primary',fn:()=>{closeModal();checkQueens();updateBadges();}}]);
+      [{label:'COLLECT',cls:'btn-primary',fn:()=>{closeModal();checkQueens();updateBadges();refreshHustlesIfOpen();}}]);
   },650);
 }
 
@@ -1335,7 +1335,7 @@ function renderHustlesApp(){
         <div class="hs-info">
           <div class="hs-name">${c.name}</div>
           <div class="hs-d">${c.d}</div>
-          <div class="h-cd ${ready?'ready':''}"><span class="t">${c.ok?(c.cd>0?mmss(c.cd/1000):'READY'):'LOCKED'}</span><span class="r">${c.ok?c.cdTxt:c.lock}</span></div>
+          <div class="h-cd ${ready?'ready':''}" data-cd="${c.id}"><span class="t">${c.ok?(c.cd>0?mmss(c.cd/1000):'READY'):'LOCKED'}</span><span class="r">${c.ok?c.cdTxt:c.lock}</span></div>
         </div>
       </div>
       <div class="h-stats">${c.stats.map(s=>`<span class="h-stat">${s[0]} <b>${s[1]}</b></span>`).join('')}</div>
@@ -1349,6 +1349,24 @@ function renderHustlesApp(){
       else openScratch();
     };
   });
+}
+/* live cooldown ticker for the hustles page */
+function updateHustlesCd(){
+  const scr=$id('scr-hustles');
+  if(!scr||!scr.classList.contains('on'))return;
+  scr.querySelectorAll('[data-cd]').forEach(el=>{
+    if(el.dataset.cd==='scratch')return;
+    const until=S.acts[el.dataset.cd==='street'?'scd':'gcd'];
+    const left=until-now();
+    const t=el.querySelector('.t');
+    if(left>0){el.classList.remove('ready');t.textContent=mmss(left/1000);}
+    else if(!el.classList.contains('ready')){el.classList.add('ready');t.textContent='READY';}
+  });
+}
+setInterval(updateHustlesCd,1000);
+function refreshHustlesIfOpen(){
+  const scr=$id('scr-hustles');
+  if(scr&&scr.classList.contains('on'))renderHustlesApp();
 }
 
 /* ---- VAULT app ---- */
