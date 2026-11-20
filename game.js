@@ -12,12 +12,12 @@ const TICK_MS=200, HEIST_FIRST_S=60, HEIST_EVERY_S=120, RAID_COOLDOWN_S=25;
 const OFFLINE_CAP_S=8*3600, OFFLINE_MIN_S=90;
 
 const DISTRICTS=[
-  {id:1,name:'MOTEL STRIP', img:'art/districts/d1-motel-strip.jpg', img2:'art/era2/d1.jpg', vid:'videos/d1-loop.mp4', icon:'🌴', unlock:0,     unlockTxt:''},
-  {id:2,name:'NEON BEACH',  img:'art/districts/d2-neon-beach.jpg',  img2:'art/era2/d2.jpg', vid:'videos/d2-loop.mp4', icon:'🏖️', unlock:150e3, unlockTxt:'$150K CLEAN'},
-  {id:3,name:'DOWNTOWN',    img:'art/districts/d3-downtown.jpg',    img2:'art/era2/d3.jpg', vid:'videos/d3-loop.mp4', icon:'🌃', unlock:4e6,    unlockTxt:'$4M CLEAN'},
-  {id:4,name:'THE DOCKS',   img:'art/districts/d4-docks.jpg',       img2:'art/era2/d4.jpg', vid:'videos/d4-loop.mp4', icon:'⚓', unlock:120e6,  unlockTxt:'$120M CLEAN'},
-  {id:5,name:'SWAMP GLADES',img:'art/districts/d5-swamp.jpg',       img2:'art/era2/d5.jpg', vid:'videos/d5-loop.mp4', icon:'🐊', unlock:4e9,    unlockTxt:'$4B CLEAN'},
-  {id:6,name:'STAR ISLAND', img:'art/districts/d6-star-island.jpg', img2:'art/era2/d6.jpg', vid:'videos/d6-loop.mp4', icon:'🏝️', unlock:150e9,  unlockTxt:'$150B CLEAN'},
+  {id:1,name:'MOTEL STRIP', img:'art/districts/d1-motel-strip.jpg', img2:'art/era2/d1.jpg', img3:'art/era3/d1.jpg', vid:'videos/d1-loop.mp4', icon:'🌴', unlock:0,     unlockTxt:''},
+  {id:2,name:'NEON BEACH',  img:'art/districts/d2-neon-beach.jpg',  img2:'art/era2/d2.jpg', img3:'art/era3/d2.jpg', vid:'videos/d2-loop.mp4', icon:'🏖️', unlock:150e3, unlockTxt:'$150K CLEAN'},
+  {id:3,name:'DOWNTOWN',    img:'art/districts/d3-downtown.jpg',    img2:'art/era2/d3.jpg', img3:'art/era3/d3.jpg', vid:'videos/d3-loop.mp4', icon:'🌃', unlock:4e6,    unlockTxt:'$4M CLEAN'},
+  {id:4,name:'THE DOCKS',   img:'art/districts/d4-docks.jpg',       img2:'art/era2/d4.jpg', img3:'art/era3/d4.jpg', vid:'videos/d4-loop.mp4', icon:'⚓', unlock:120e6,  unlockTxt:'$120M CLEAN'},
+  {id:5,name:'SWAMP GLADES',img:'art/districts/d5-swamp.jpg',       img2:'art/era2/d5.jpg', img3:'art/era3/d5.jpg', vid:'videos/d5-loop.mp4', icon:'🐊', unlock:4e9,    unlockTxt:'$4B CLEAN'},
+  {id:6,name:'STAR ISLAND', img:'art/districts/d6-star-island.jpg', img2:'art/era2/d6.jpg', img3:'art/era3/d6.jpg', vid:'videos/d6-loop.mp4', icon:'🏝️', unlock:150e9,  unlockTxt:'$150B CLEAN'},
 ];
 
 const RACKETS=[
@@ -329,7 +329,7 @@ function checkLieuts(){
 function setBg(d){
   const a=$id('bg-a'),b=$id('bg-b'),v=$id('bg-video');
   // the painted still always renders underneath; the video fades in on top only while actually playing
-  const img=S.era===2?d.img2:d.img;
+  const img=eraImg(d);
   const target=a.classList.contains('show')?b:a, other=target===a?b:a;
   target.style.backgroundImage=`url("${img}")`;
   target.classList.add('show'); other.classList.remove('show');
@@ -340,6 +340,8 @@ function setBg(d){
   }else if(v.src){ v.removeAttribute('src'); } // drop stale src so the tap-to-retry handler can't resurrect it
 }
 function districtOf(id){ return DISTRICTS.find(d=>d.id===id); }
+// per-era painted art: 1986 original → era-2 reskin → 2049 chrome (falls back gracefully)
+function eraImg(d){ return S.era===3?(d.img3||d.img2||d.img):S.era===2?(d.img2||d.img):d.img; }
 
 function renderTabs(){
   const nav=$id('district-strip'); nav.innerHTML='';
@@ -592,7 +594,7 @@ function startHeist(h){
   $id('heist-pick').hidden=true; $id('heist-play').hidden=false; $id('drill-result').hidden=true;
   // intro card: district art + heist name + GO
   const d=districtOf(h.d);
-  const poster=S.era===2&&d.img2?d.img2:d.img;
+  const poster=eraImg(d);
   const base=Math.max(300,totalIncome()*90);
   const take=base*RISK_MULT[h.risk]*(has('camille')?1.25:1);
   $id('heist-kicker').textContent=KIND_TXT[h.kind];
@@ -1731,10 +1733,13 @@ addEventListener('keydown',e=>{
     document.body.classList.contains('phone-open')?closePhone():openPhone();
   }
 });
+function updatePhoneGreet(){
+  $id('p-greet').textContent=(S.era===3?'2049':S.era===2?'PRESENT DAY':'1986')+' · '+districtOf(S.active).name;
+}
 setInterval(()=>{ // live clock + greet
   const d=new Date();
   $id('p-clock').textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-  $id('p-greet').textContent=(S.era===2?'PRESENT DAY':'1986')+' · '+districtOf(S.active).name;
+  updatePhoneGreet();
 },15000);
 
 function updateBadges(){
@@ -1864,7 +1869,7 @@ function renderVaultApp(){
   for(const h of HEISTS){
     const ok=!!S.vault[h.id];
     const d=districtOf(h.d);
-    const poster=S.era===2&&d.img2?d.img2:d.img;
+    const poster=eraImg(d);
     if(ok){
       html+=`<div class="vt cleared">
         <div class="vart" data-vid="${h.vid}" title="Tap to play">
@@ -1944,7 +1949,11 @@ function renderLegacyApp(){
     ${S.era>=2
       ?`<div class="era-p live"><img src="art/era2/d3.jpg" alt=""><span class="et gold">TODAY · LIVE</span></div>`
       :`<button class="era-p" data-era="2" ${S.respect<100?'disabled':''}><img src="art/era2/d3.jpg" alt=""><span class="et ${S.respect>=100?'gold':''}">${S.respect>=100?'ENTER · 100 RP':'100 RP'}</span></button>`}
-    <div class="era-p locked"><img src="art/era3/skyline.jpg" alt=""><span class="et">2049 · SOON</span></div>
+    ${S.era>=3
+      ?`<div class="era-p live"><img src="art/era3/skyline.jpg" alt=""><span class="et gold">2049 · LIVE</span></div>`
+      :S.era===2
+        ?`<button class="era-p" data-era="3" ${S.respect<400?'disabled':''}><img src="art/era3/skyline.jpg" alt=""><span class="et ${S.respect>=400?'gold':''}">${S.respect>=400?'ENTER · 400 RP':'400 RP'}</span></button>`
+        :`<div class="era-p locked"><img src="art/era3/skyline.jpg" alt=""><span class="et">2049 · LOCKED</span></div>`}
   </div>`;
   html+='<div class="l-grid">';
   for(const t of LEGACY){
@@ -1969,16 +1978,25 @@ function renderLegacyApp(){
       window.Radio&&Radio.sfx.chaChing();
     };
   });
-  const eraBtn=$id('legacy-body').querySelector('[data-era]');
-  if(eraBtn)eraBtn.onclick=()=>{
-    if(S.era>=2||S.respect<100)return;
-    S.respect-=100; S.era=2; applyDistrict(); updateLedger(); updateBadges(); save();
-    window.Radio&&Radio.sfx.fanfare();
-    modal('ERA II — PRESENT DAY',
-      `<p>The neon faded. The towers grew glass. Palmetto City, present day.</p>
-       <p class="led-line">INCOME ×5 EVERYWHERE · NEW SKYLINE</p>`,
-      [{label:'WELCOME TO TODAY',cls:'btn-primary',fn:closeModal}]);
-  };
+  $id('legacy-body').querySelectorAll('[data-era]').forEach(btn=>{
+    btn.onclick=()=>{
+      const to=+btn.dataset.era, cost=to===2?100:400;
+      if(S.era>=to||S.era<to-1||S.respect<cost)return;
+      S.respect-=cost; S.era=to; applyDistrict(); updateLedger(); updateBadges(); updatePhoneGreet(); save();
+      window.Radio&&Radio.sfx.fanfare();
+      if(to===2){
+        modal('ERA II — PRESENT DAY',
+          `<p>The neon faded. The towers grew glass. Palmetto City, present day.</p>
+           <p class="led-line">INCOME ×5 EVERYWHERE · NEW SKYLINE</p>`,
+          [{label:'WELCOME TO TODAY',cls:'btn-primary',fn:closeModal}]);
+      }else{
+        modal('ERA III — 2049',
+          `<p>Sixty-three years on, the chrome grew over everything. Palmetto City, 2049.</p>
+           <p class="led-line">INCOME ×25 EVERYWHERE · CHROME SKYLINE</p>`,
+          [{label:'RIDE THE FUTURE',cls:'btn-primary',fn:closeModal}]);
+      }
+    };
+  });
   $id('retire-btn').onclick=()=>{ if(can&&gain>0)confirmPrestige(gain); else toast(can?'NOTHING TO RETIRE ON YET':'UNLOCK DOWNTOWN FIRST'); };
 }
 
