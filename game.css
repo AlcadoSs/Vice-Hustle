@@ -148,7 +148,7 @@ button{font-family:inherit;cursor:pointer;color:inherit;background:none;border:n
   box-shadow:0 0 10px rgba(255,46,136,.3);
 }
 .c-buy b{display:block;font-size:15px;color:#ffd9ec}
-.c-buy[disabled]{opacity:.45;filter:grayscale(.5)}
+.c-buy[disabled]{opacity:.55;filter:none}
 
 #upgrades{display:flex;flex-direction:column;gap:8px;padding:8px 0 4px}
 .up-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;

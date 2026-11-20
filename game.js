@@ -412,10 +412,10 @@ function updateCards(t){
   }
 }
 $id('cards').addEventListener('click',e=>{
-  const btn=e.target.closest('.c-buy'); if(!btn||btn.disabled)return;
+  const btn=e.target.closest('.c-buy'); if(!btn)return;
   const id=btn.closest('.card').dataset.id, r=RACKETS.find(x=>x.id===id);
   let k=mult==='max'?maxAfford(r,S.dirty):(mult==='10'?10:1);
-  if(k<1)return;
+  if(k<1){toast('NOT ENOUGH DIRTY CASH');return;}
   const cost=costOf(r,k);
   if(S.dirty<cost){toast('NOT ENOUGH DIRTY CASH');return;}
   S.dirty-=cost; rs(id).n+=k;
