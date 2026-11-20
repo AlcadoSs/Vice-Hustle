@@ -910,12 +910,12 @@ function ctRound(){
     window.Radio&&Radio.sfx.blip(760);
     drillTO=setTimeout(()=>{
       cards.forEach(c=>c.classList.remove('up'));
-      // shuffle: sequential swaps, then double-swaps at ★★+
+      // shuffle: sequential swaps, then double-swaps at ★★+ (paced so each move reads cleanly)
       d.phase='shuffle';
       const slots=[0,1,2,3];
       let swaps=0;
       const seqCount=2+Math.floor(Math.random()*2);
-      const dblCount=d.h.risk>=2?1+Math.floor(Math.random()*2):0;
+      const dblCount=d.h.risk>=3?2:d.h.risk===2?1:0;
       const doSwap=()=>{
         if(!drill||drill.over)return;
         const a=Math.floor(Math.random()*4), b=Math.floor(Math.random()*4);
@@ -924,8 +924,8 @@ function ctRound(){
         [slots[a],slots[b]]=[slots[b],slots[a]];
         window.Radio&&Radio.sfx.tick();
         swaps++;
-        if(swaps<seqCount)drillTO=setTimeout(doSwap,120);
-        else if(dblCount>0)drillTO=setTimeout(doDoubleSwap,380);
+        if(swaps<seqCount)drillTO=setTimeout(doSwap,440); // wait out the animation — no mid-flight pileups
+        else if(dblCount>0)drillTO=setTimeout(doDoubleSwap,600);
         else finishShuffle();
       };
       const doDoubleSwap=()=>{
@@ -939,7 +939,7 @@ function ctRound(){
         [slots[c2],slots[e]]=[slots[e],slots[c2]];
         window.Radio&&Radio.sfx.blip(520);
         swaps++;
-        if(swaps<seqCount+dblCount)drillTO=setTimeout(doDoubleSwap,400);
+        if(swaps<seqCount+dblCount)drillTO=setTimeout(doDoubleSwap,650);
         else finishShuffle();
       };
       const finishShuffle=()=>{
@@ -958,7 +958,7 @@ function ctRound(){
         drillTO=setTimeout(()=>{
           ca.style.transform=''; cb.style.transform='';
           tbl.innerHTML=''; slots.forEach(s=>tbl.appendChild(cards[s]));
-        },320);
+        },360);
       }
       drillTO=setTimeout(doSwap,450);
     },1000);
@@ -2155,7 +2155,6 @@ function renderVaultApp(){
   $id('vault-body').querySelectorAll('.vt.cleared .vart').forEach(el=>{
     el.onclick=()=>{
       if(el.classList.contains('live')){ stopVaultVideos(); return; }
-      if(S.stills){ toast('STILLS ONLY — TURN VIDEOS BACK ON IN SETUP'); return; }
       stopVaultVideos();
       const card=el.closest('.vt');
       const v=document.createElement('video');
@@ -2272,7 +2271,7 @@ function renderSettingsApp(){
       <span>STILLS ONLY</span><span class="tgl-knob" aria-hidden="true"></span>
     </button>
     <p class="s-note" style="margin-top:-2px">${S.stills
-      ?'ON — painted stills everywhere, no video loops. Easier on battery + data.'
+      ?'ON — ambient video loops off (districts, title, raids). Vault tapes still play.'
       :'OFF — ambient video loops behind districts, title & raids.'}</p>
     <div class="s-note" style="color:var(--teal)">EXPORT SAVE</div>
     <textarea id="exp" readonly>${JSON.stringify(S)}</textarea>
