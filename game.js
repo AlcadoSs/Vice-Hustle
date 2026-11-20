@@ -1221,6 +1221,7 @@ const SVGS={
 function showApp(name){
   document.querySelectorAll('#phone .scr').forEach(s=>s.classList.toggle('on',s.id==='scr-'+name));
   $id('scr-home').classList.toggle('on',name==='home');
+  if(name!=='vault')stopVaultVideos();
   window.Radio&&Radio.sfx.tick();
   if(name==='queens')renderQueensApp();
   else if(name==='hustles')renderHustlesApp();
@@ -1369,29 +1370,51 @@ function refreshHustlesIfOpen(){
   if(scr&&scr.classList.contains('on'))renderHustlesApp();
 }
 
-/* ---- VAULT app ---- */
+/* ---- VAULT app · TAPE WALL ---- */
 function renderVaultApp(){
   const cleared=Object.keys(S.vault).length;
   $id('vault-sub').textContent=cleared+' / '+HEISTS.length;
-  let html=`<div class="v-led">FIRST-CLEAR CINEMATICS · <b>${cleared} RECOVERED</b></div><div class="v-shelf">`;
+  let html=`<div class="v-led">FIRST-CLEAR CINEMATICS · <b>${cleared} RECOVERED</b> · TAP A TAPE</div><div class="vt-grid">`;
   for(const h of HEISTS){
     const ok=!!S.vault[h.id];
-    html+=`<div class="tape ${ok?'cleared':'locked'}"><div class="kind">${KIND_TXT[h.kind]}</div>
-      <div class="tname">${ok?h.name:'???'}</div><span class="risk">${'★'.repeat(h.risk)}</span>
-      ${ok?`<button class="watch" data-vid="${h.vid}" data-n="${h.name}">${SVGS.play}WATCH</button>`:''}
-    </div>`;
+    const d=districtOf(h.d);
+    const poster=S.era===2&&d.img2?d.img2:d.img;
+    if(ok){
+      html+=`<div class="vt cleared">
+        <div class="vart" data-vid="${h.vid}" title="Tap to play">
+          <img src="${poster}" alt=""><span class="vplay">${SVGS.play}</span>
+        </div>
+        <div class="vlabel"><div class="kind">${KIND_TXT[h.kind]}</div><div class="tname">${h.name}</div></div>
+        <span class="risk">${'★'.repeat(h.risk)}</span>
+      </div>`;
+    }else{
+      html+=`<div class="vt locked">
+        <div class="vart" style="cursor:default"></div>
+        <div class="vlabel"><div class="kind">${KIND_TXT[h.kind]}</div><div class="tname">???</div></div>
+        <span class="risk">${'★'.repeat(h.risk)}</span>
+      </div>`;
+    }
   }
   html+='</div>';
   $id('vault-body').innerHTML=html;
-  $id('vault-body').querySelectorAll('[data-vid]').forEach(b=>{
-    b.onclick=()=>{
+  // inline, control-free playback — one tape at a time
+  $id('vault-body').querySelectorAll('.vt.cleared .vart').forEach(el=>{
+    el.onclick=()=>{
+      if(el.classList.contains('live')){ stopVaultVideos(); return; }
+      stopVaultVideos();
+      const card=el.closest('.vt');
+      const v=document.createElement('video');
+      v.src=el.dataset.vid; v.muted=true; v.loop=true; v.autoplay=true; v.playsInline=true;
+      el.appendChild(v); v.play().catch(()=>{});
+      el.classList.add('live'); card.classList.add('playing');
       window.Radio&&Radio.sfx.tick();
-      modal(b.dataset.n,
-        `<video src="${b.dataset.vid}" controls autoplay muted loop playsinline></video>
-         <p class="led-line" style="margin-top:10px">First-clear cinematic.</p>`,
-        [{label:'DONE',cls:'btn-primary',fn:closeModal}]);
     };
   });
+}
+function stopVaultVideos(){
+  document.querySelectorAll('#vault-body video').forEach(v=>{v.pause();v.remove();});
+  document.querySelectorAll('#vault-body .vt.playing').forEach(c=>c.classList.remove('playing'));
+  document.querySelectorAll('#vault-body .vart').forEach(a=>a.classList.remove('live'));
 }
 
 /* ---- CREW app ---- */
@@ -1415,26 +1438,39 @@ function renderCrewApp(){
   $id('crew-body').innerHTML=html;
 }
 
-/* ---- LEGACY app ---- */
+/* ---- LEGACY app · TROPHY WALL ---- */
+const TRACK_ICONS={
+  empire:'<svg class="ic ticon" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="2"/><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M4 13h16"/></svg>',
+  laundry:'<svg class="ic ticon" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16" rx="2"/><circle cx="12" cy="12" r="4"/><path d="M12 10v4M10 12h4"/></svg>',
+  whisper:'<svg class="ic ticon" viewBox="0 0 24 24"><path d="M4 14q4-8 8-4t8-4M4 18q4-6 8-3t8-5"/></svg>',
+  kick:'<svg class="ic ticon" viewBox="0 0 24 24"><path d="M13 3L5 13h5l-1 8 8-10h-5z"/></svg>',
+};
 function renderLegacyApp(){
   const gain=respectGain(), can=S.unlocked>=3;
   let html=`<div class="l-led">RESPECT <b>${fmt(S.respect)}</b> · PENDING <b>+${fmt(gain)}</b></div>`;
-  html+=`<div class="era"><div class="t">ERA II — "PRESENT DAY" ${S.era>=2?'· LIVE':''}</div>
-    <div class="d">A new skyline, a new decade. ×5 income everywhere.${S.era>=2?' You are living in it.':''}</div>
-    ${S.era>=2?'':`<button class="btn-gold go" data-era="2" ${S.respect<100?'disabled':''} style="margin-top:9px">${S.respect<100?'100 RP TO ENTER':'ENTER · 100 RP'}</button>`}</div>`;
+  html+=`<div class="bigscore"><img src="art/keyart/prestige.jpg" alt="">
+    <div class="bs-line"><div class="bs-txt">THE BIG SCORE — retire to the Keys</div>
+      <button class="btn-gold" id="retire-btn" ${can&&gain>0?'':'disabled'}>${can?`+${fmt(gain)} RP`:'NEED DOWNTOWN'}</button></div>
+  </div>`;
+  html+=`<div class="era-row">
+    <div class="era-p live"><img src="art/districts/d3-downtown.jpg" alt=""><span class="et">1986 · LIVE</span></div>
+    ${S.era>=2
+      ?`<div class="era-p live"><img src="art/era2/d3.jpg" alt=""><span class="et gold">TODAY · LIVE</span></div>`
+      :`<button class="era-p" data-era="2" ${S.respect<100?'disabled':''}><img src="art/era2/d3.jpg" alt=""><span class="et ${S.respect>=100?'gold':''}">${S.respect>=100?'ENTER · 100 RP':'100 RP'}</span></button>`}
+    <div class="era-p locked"><img src="art/era3/skyline.jpg" alt=""><span class="et">2049 · SOON</span></div>
+  </div>`;
   html+='<div class="l-grid">';
   for(const t of LEGACY){
     const lvl=S.spent[t.id], maxed=lvl>=t.max, cost=LEGACY_COSTS[lvl];
-    html+=`<div class="l-card"><div class="l-name">${SVGS.star} ${t.name}</div>
+    html+=`<div class="l-card"><div class="l-name">${TRACK_ICONS[t.id]||SVGS.star} ${t.name}</div>
       <div class="l-pips">${Array.from({length:t.max},(_,i)=>`<i class="${i<lvl?'on':''}"></i>`).join('')}</div>
       <button class="l-buy" data-l="${t.id}" ${maxed||S.respect<cost?'disabled':''}>${maxed?'MAXED':cost+' RP'}</button>
     </div>`;
   }
   html+='</div>';
-  html+=`<button class="btn-gold" id="retire-btn" style="width:100%;margin-bottom:14px" ${can&&gain>0?'':'disabled'}>
-    ${can?`RETIRE — THE BIG SCORE (+${fmt(gain)} RP)`:'UNLOCK DOWNTOWN TO RETIRE'}</button>`;
-  html+='<div class="mile-strip">'+MILESTONES.map(m=>
-    `<span class="mile ${S.mile[m.id]?'on':''}">${SVGS.star}${m.name}</span>`).join('')+'</div>';
+  html+='<div class="panel-title" style="font-size:14px;margin:12px 0 8px">MILESTONES</div>';
+  html+='<div class="mile-grid">'+MILESTONES.map(m=>
+    `<span class="mile-t ${S.mile[m.id]?'on':''}">${SVGS.star}${m.name}</span>`).join('')+'</div>';
   $id('legacy-body').innerHTML=html;
   $id('legacy-body').querySelectorAll('[data-l]').forEach(b=>{
     b.onclick=()=>{
