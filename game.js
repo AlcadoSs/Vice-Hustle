@@ -8,7 +8,7 @@
 
 /* ---------------- CONFIG ---------------- */
 const SAVE_KEY='vice-hustle-save', SAVE_VER=3;
-const TICK_MS=200, HEIST_FIRST_S=0, HEIST_EVERY_S=0, RAID_COOLDOWN_S=25;
+const TICK_MS=200, HEIST_FIRST_S=60, HEIST_EVERY_S=120, RAID_COOLDOWN_S=25;
 const OFFLINE_CAP_S=8*3600, OFFLINE_MIN_S=90;
 
 const DISTRICTS=[
@@ -858,7 +858,7 @@ function endHeist(){
 function closeHeist(){
   cancelAnimationFrame(drillRAF); drill=null; clearTimeout(drillTO); clearInterval(chaseTO);
   $id('heist-modal').hidden=true;
-  S.heistReadyAt=0; // heists are always ready
+  S.heistReadyAt=now()+HEIST_EVERY_S*1000;
   updateHeistBtn(now());
 }
 $id('heist-modal').addEventListener('click',e=>{
