@@ -376,23 +376,24 @@ function updateEventBanner(){
 /* ---------------- DAILY CHALLENGES ---------------- */
 const DAILY_RP=2, DAILY_BONUS=3;
 const DAILY_POOL=[
-  {id:'races',  name:'BURN RUBBER',  goal:3, d:'run 3 races — street or swamp'},
+  {id:'races',  name:'BURN RUBBER',  goal:3, d:'run 3 races — street or swamp', ok:s=>s.unlocked>=2},
   {id:'heists', name:'MAKE IT COUNT',goal:2, d:'clear 2 heists'},
   {id:'scratch',name:'LUCKY STREAK', goal:3, d:'scratch 3 tickets'},
-  {id:'casino', name:'HOT HAND',     goal:2, d:'win 2 blackjack hands'},
+  {id:'casino', name:'HOT HAND',     goal:2, d:'win 2 blackjack hands', ok:s=>s.unlocked>=3},
   {id:'rackets',name:'EXPAND',       goal:5, d:'buy 5 racket fronts'},
   {id:'wash',   name:'CLEAN SWEEP',  goal:0, d:'launder a stack of cash', money:true},
   {id:'raid',   name:'IRON CURTAIN', goal:1, d:'survive a raid'},
-  {id:'night',  name:'NIGHT OUT',    goal:1, d:'take a Queen out on the town'},
+  {id:'night',  name:'NIGHT OUT',    goal:1, d:'take a Queen out on the town', ok:s=>Object.keys(s.queens).length>=1},
 ];
 function todayKey(){ const d=new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function dailyCheck(){
   const k=todayKey();
   if(S.daily&&S.daily.date===k)return;
-  // deterministic per-date pick: hashing the date means reloads can't reshuffle today's board
+  // deterministic per-date pick: hashing the date means reloads can't reshuffle today's board;
+  // only tasks the player can actually DO right now are in the hat (no locked-casino dailies)
   let h=0; for(const c of k)h=(h*31+c.charCodeAt(0))>>>0;
-  const idx=[...DAILY_POOL.keys()], pick=[];
+  const idx=DAILY_POOL.flatMap((p,i)=>(!p.ok||p.ok(S))?[i]:[]), pick=[];
   for(let i=0;i<3;i++){ h=(h*1103515245+12345)>>>0; pick.push(idx.splice(h%idx.length,1)[0]); }
   const tasks=pick.map(i=>{ const t=DAILY_POOL[i];
     return {id:t.id, goal:t.money?Math.max(5000,Math.round(totalIncome()*600)):t.goal, prog:0, done:false}; });
@@ -2100,6 +2101,7 @@ function bjSettle(){
   updateBadges(); save();
 }
 function openBlackjack(){
+  if(S.unlocked<3){toast('THE CASINO OPENS WITH DOWNTOWN');return;}
   if(now()<S.acts.ccd){toast('THE PIT BOSS SAYS WAIT — '+mmss((S.acts.ccd-now())/1000));return;}
   const stake=bjStake();
   if(S.dirty<stake){toast('NEED '+$$(stake)+' DIRTY AT THE TABLE');return;}
@@ -2114,17 +2116,17 @@ function openBlackjack(){
 }
 /* ---- CASINO app ---- */
 function renderCasinoApp(){
-  const ccd=S.acts.ccd-now(), stake=bjStake(), ready=ccd<=0;
-  $id('casino-sub').textContent=S.acts.bj+' HANDS · '+S.acts.bjwins+' WINS';
+  const ccd=S.acts.ccd-now(), stake=bjStake(), ready=ccd<=0, ok=S.unlocked>=3;
+  $id('casino-sub').textContent=ok?S.acts.bj+' HANDS · '+S.acts.bjwins+' WINS':'CAMILLE\'S TABLE — DOWNTOWN';
   $id('casino-body').innerHTML=`
-    <div class="hs-card">
-      <button class="go" data-go="casino"></button>
+    <div class="hs-card ${ok?'':'locked'}">
+      <button class="go" data-go="casino" ${ok?'':'disabled'}></button>
       <div class="hs-main">
-        <div class="hs-art"><img src="art/casino/blackjack.jpg" alt="" onerror="this.remove()"></div>
+        <div class="hs-art"><img src="art/casino/blackjack.jpg" alt="" onerror="this.remove()">${ok?'':`<span class="q-lock">${SVGS.lock}</span>`}</div>
         <div class="hs-info">
           <div class="hs-name">BLACKJACK</div>
           <div class="hs-d">Camille deals · stands on 17 · BJ pays 3:2${has('camille')?' · her table ×1.05':''}</div>
-          <div class="h-cd ${ready?'ready':''}" data-cd="casino"><span class="t">${ready?'READY':mmss(ccd/1000)}</span><span class="r">45s cooldown</span></div>
+          <div class="h-cd ${ready?'ready':''}" data-cd="casino"><span class="t">${ok?(ready?'READY':mmss(ccd/1000)):'LOCKED'}</span><span class="r">${ok?'45s cooldown':'DOWNTOWN'}</span></div>
         </div>
       </div>
       <div class="h-stats"><span class="h-stat">STAKE <b>${$$(stake)}</b></span><span class="h-stat">HANDS <b>${S.acts.bj}</b></span><span class="h-stat">WINS <b>${S.acts.bjwins}</b></span></div>
