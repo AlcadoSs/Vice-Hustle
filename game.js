@@ -2233,7 +2233,7 @@ function renderLegacyApp(){
     const tip=maxed
       ?`${t.name} — ${t.desc}. MAXED at ${t.max}/${t.max}. Permanent: survives The Big Score.`
       :`${t.name} — ${t.desc}. Next level ${lvl+1}/${t.max} costs ${cost} RP. Permanent: survives The Big Score.`;
-    html+=`<div class="l-card" title="${tip}"><div class="l-name">${TRACK_ICONS[t.id]||SVGS.star} ${t.name}</div>
+    html+=`<div class="l-card" data-tip="${tip}"><div class="l-name">${TRACK_ICONS[t.id]||SVGS.star} ${t.name}</div>
       <div class="l-desc">${t.desc}</div>
       <div class="l-pips">${Array.from({length:t.max},(_,i)=>`<i class="${i<lvl?'on':''}"></i>`).join('')}</div>
       <button class="l-buy" data-l="${t.id}" ${maxed||S.respect<cost?'disabled':''}>${maxed?'MAXED':cost+' RP'}</button>
@@ -2243,7 +2243,7 @@ function renderLegacyApp(){
   html+='<div class="panel-title" style="font-size:14px;margin:12px 0 4px">MILESTONES</div>';
   html+='<div class="m-note">BADGES OF THE RUN · TOAST WHEN EARNED · RESET ON THE BIG SCORE</div>';
   html+='<div class="mile-grid">'+MILESTONES.map(m=>
-    `<span class="mile-t ${S.mile[m.id]?'on':''}" title="${m.name} — ${S.mile[m.id]?'EARNED':'HOW TO EARN'}: ${m.hint}.">${SVGS.star}<span class="mile-body"><b>${m.name}</b><small>${m.hint}</small></span></span>`).join('')+'</div>';
+    `<span class="mile-t ${S.mile[m.id]?'on':''}" data-tip="${m.name} — ${S.mile[m.id]?'EARNED':'HOW TO EARN'}: ${m.hint}."><span class="mile-med">${SVGS.star}</span><span class="mile-body"><b>${m.name}</b><small>${m.hint}</small></span></span>`).join('')+'</div>';
   $id('legacy-body').innerHTML=html;
   $id('legacy-body').querySelectorAll('[data-l]').forEach(b=>{
     b.onclick=()=>{
