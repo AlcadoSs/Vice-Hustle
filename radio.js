@@ -10,7 +10,8 @@ window.Radio=(()=>{
 
 /* ---------------- stations ---------------- */
 // prog = semitone offsets from root, one chord per bar
-const STATIONS=[
+// Era I "1986" — the classic synthwave dial (the original table, unchanged)
+const ERA1=[
   {name:'WPLM 103.5 · THE VIBE',   bpm:96,  root:45, prog:[0,8,3,10], pad:'sawtooth', lead:'triangle', arp:2, bass8:true,  drums:'four'},
   {name:'98.7 WAVE BEACH',         bpm:110, root:48, prog:[0,8,3,10], pad:'sawtooth', lead:'square',   arp:2, bass8:true,  drums:'four'},
   {name:'101.1 CHROME CITY',       bpm:120, root:40, prog:[0,5,8,10], pad:'sawtooth', lead:'sawtooth', arp:1, bass16:true, drums:'four'},
@@ -18,6 +19,26 @@ const STATIONS=[
   {name:'96.9 GLADES GHOST',       bpm:80,  root:38, prog:[0,3,7,10], pad:'sawtooth', lead:'sine',     arp:4, bass8:true,  drums:'sparse'},
   {name:'107.7 STAR GOLD',         bpm:124, root:48, prog:[0,5,9,7],  pad:'sawtooth', lead:'triangle', arp:1, bass16:true, drums:'four'},
 ];
+// Era II "Present Day" — smoother, glassy, half-time
+const ERA2=[
+  {name:'WPLM LITE · SMOOTH OPERATIONS', bpm:82,  root:45, prog:[0,8,3,10], pad:'triangle', lead:'sine',     arp:4, bass8:true,  drums:'half'},
+  {name:'WAVE 98.7 · GLASS BEACH',       bpm:88,  root:48, prog:[0,8,3,10], pad:'sine',     lead:'triangle', arp:4, bass8:true,  drums:'half'},
+  {name:'101.1 SKLINE ADULT CONTEMPORARY',bpm:95, root:40, prog:[0,5,8,10], pad:'triangle', lead:'sine',     arp:2, bass8:true,  drums:'half'},
+  {name:'94.3 HARBOR NIGHTS',            bpm:78,  root:43, prog:[0,-2,3,5], pad:'sine',     lead:'triangle', arp:4, bass8:true,  drums:'sparse'},
+  {name:'96.9 MIST FM · AFTER HOURS',    bpm:70,  root:38, prog:[0,3,7,10], pad:'sine',     lead:'sine',     arp:4, bass8:true,  drums:'sparse'},
+  {name:'107.7 GOLD HOUR',               bpm:92,  root:48, prog:[0,5,9,7],  pad:'triangle', lead:'sine',     arp:2, bass8:true,  drums:'half'},
+];
+// Era III "2049" — chrome-edgy, faster, detuned saws
+const ERA3=[
+  {name:'WPLM//NET · SIGNAL GHOST',  bpm:128, root:45, prog:[0,8,3,10], pad:'sawtooth', lead:'sawtooth', arp:1, bass16:true, drums:'four'},
+  {name:'CHROME.FM 98.7',            bpm:132, root:48, prog:[0,8,3,10], pad:'sawtooth', lead:'square',   arp:1, bass16:true, drums:'four'},
+  {name:'101.1 NEON GRID TONIGHT',   bpm:138, root:40, prog:[0,5,8,10], pad:'sawtooth', lead:'sawtooth', arp:1, bass16:true, drums:'four'},
+  {name:'94.3 CARGO PULSE',          bpm:122, root:43, prog:[0,-2,3,5], pad:'square',   lead:'sawtooth', arp:2, bass16:true, drums:'four'},
+  {name:'96.9 SWAMPSTATIC',          bpm:104, root:38, prog:[0,3,7,10], pad:'sawtooth', lead:'sawtooth', arp:2, bass16:true, drums:'sparse'},
+  {name:'107.7 STARLINK GOLD',       bpm:140, root:48, prog:[0,5,9,7],  pad:'sawtooth', lead:'square',   arp:1, bass16:true, drums:'four'},
+];
+const ERA_TABLES={1:ERA1,2:ERA2,3:ERA3};
+const STATIONS=[...ERA1];
 
 /* ---------------- engine state ---------------- */
 let ctx=null, master=null, musicBus=null, sfxBus=null;
@@ -205,6 +226,14 @@ const api={
   setStation(i){
     station=(i+STATIONS.length)%STATIONS.length;
     step=0;                                      // restart pattern cleanly
+    if(started)startMusic();
+    return STATIONS[station].name;
+  },
+  setEra(era){ // swap the dial to the era's six stations — same slots, new sound
+    const list=ERA_TABLES[era]||ERA1;
+    STATIONS.length=0; STATIONS.push(...list);   // in place: exported reference stays valid
+    if(station>=STATIONS.length)station=0;
+    step=0;
     if(started)startMusic();
     return STATIONS[station].name;
   },

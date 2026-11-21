@@ -110,7 +110,11 @@ const QUEENS=[
   {id:'destiny', name:'Destiny Monroe',   title:'The Diva',              pic:'art/queens/destiny.jpg', em:'🎤', unlock:s=>s.unlocked>=6,     hint:'unlock Star Island',        fx:'Frenzies last twice as long'},
   {id:'vivienne',name:'Vivienne Ashford', title:'The Heiress',           pic:'art/queens/vivienne.jpg',em:'🛥️', unlock:s=>s.respect>=1,      hint:'pull your first Big Score', fx:'Offline earnings +50%'},
 ];
-const RADIO_SUBS=['DJ KRM ON THE BOARDS','SALT IN THE SPEAKERS','CHROME AFTER DARK','HEAVY MACHINERY','BROADCAST FROM THE MIST','ONLY THE FINEST'];
+const RADIO_SUBS=[
+  ['DJ KRM ON THE BOARDS','SALT IN THE SPEAKERS','CHROME AFTER DARK','HEAVY MACHINERY','BROADCAST FROM THE MIST','ONLY THE FINEST'],
+  ['SMOOTH OPERATIONS ALL NIGHT','GLASS AND SALTWATER','THE SKYLINE IS QUIET','SLOW CARGO, WARM LIGHT','MIST AND LOW TIDE','GOLDEN HOUR EVERY HOUR'],
+  ['SIGNAL GHOST ON DECK','CHROME NEVER SLEEPS','GRID LOCKED IN','FREIGHT AT 140','STATIC FROM THE GLADES','ORBITAL GOLD ONLY'],
+];
 const NIGHT_LINES=[
   'Solana knows a beach bar that forgets faces.',
   'Camille got you the booth with the good champagne.',
@@ -208,7 +212,7 @@ function defaultState(){
     respect:0, respectGranted:0, spent:{empire:0,laundry:0,whisper:0,kick:0},
     vault:{}, lieuts:{}, lastSal:0, era:1,
     radio:{st:0,muted:true}, stills:false, acts:{races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0,sstreak:0},
-    queens:{}, inspiredUntil:0, nightCd:0, mile:{}, ev:null, daily:null,
+    queens:{}, inspiredUntil:0, nightCd:0, mile:{}, ev:null, daily:null, weather:null,
     garage:{}, garageSel:'stock',
     msgs:[], unreadMsgs:0, msgBuff:null, deploy:{},
     heistReadyAt:0, frenzy:0, ts:Date.now(),
@@ -289,6 +293,7 @@ function washOf(r){
   if(has('tang'))w*=1.05;
   if(msgBuffActive('vivienne'))w*=1.1;
   if(evActive('payday'))w*=1.5;
+  if(weatherActive('heat'))w*=1.1;
   return w;
 }
 function districtRackets(d){ return RACKETS.filter(r=>r.d===d); }
@@ -314,6 +319,7 @@ function decayRate(){
   let d=.5+.5*S.up.lawyer+S.heat*.025;
   if(has('kmr'))d+=.5;
   if(msgBuffActive('yara'))d+=1;
+  if(weatherActive('storm'))d+=.3;
   return d;
 }
 function costOf(r,k){ const cur=rs(r.id).n,b=r.cost*Math.pow(1.15,cur); return b*(Math.pow(1.15,k)-1)/.15; }
@@ -337,6 +343,7 @@ function load(){
     S.radio=Object.assign({st:0,muted:true},d.radio);
     S.stills=!!d.stills;
     S.ev=d.ev&&d.ev.until>now()?d.ev:null; // expired events never survive a reload
+    S.weather=d.weather&&d.weather.until>now()?d.weather:null;
     S.daily=d.daily&&d.daily.date?d.daily:null;
     S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0,sstreak:0},d.acts);
     S.garage=d.garage||{};
@@ -403,6 +410,37 @@ function endEvent(){
   S.ev=null;
   updateEventBanner();
   toast(type==='crackdown'?'THE SWEEP LET UP':'THE MOMENT PASSED');
+}
+
+/* ---------------- WEATHER ---------------- */
+const WEATHERS={
+  clear:{name:'CLEAR SKIES', dur:[5,10]},
+  rain: {name:'NEON RAIN',   dur:[4,7], line:'NEON RAIN ON THE STRIP — SCORES PAY 10% LESS, BUT THE COPS STAY DRY'},
+  storm:{name:'THUNDERSTORM',dur:[2,4], line:'STORM OVER PALMETRO — THE RAIN COOLS THE STREETS, HEAT DRAINS FASTER'},
+  heat: {name:'HEATWAVE',    dur:[4,6], line:'HEATWAVE IN EFFECT — THE WHOLE CITY\'S WASHING MONEY, LAUNDERING +10%'},
+};
+function weatherActive(type){ return S.weather&&S.weather.until>now()&&S.weather.type===type; }
+const weatherTake=()=>weatherActive('rain')?.9:1; // rain-soaked scores pay less — previews mirror it
+function maybeWeather(){
+  if(S.weather&&S.weather.until>now())return;
+  const r=Math.random(); // clear 45% / rain 25% / storm 10% / heat 20%
+  const type=r<.45?'clear':r<.70?'rain':r<.80?'storm':'heat';
+  const w=WEATHERS[type];
+  const mins=w.dur[0]+Math.random()*(w.dur[1]-w.dur[0]);
+  S.weather={type,until:now()+mins*60000};
+  updateWeather();
+  if(type!=='clear'){
+    toast(w.name+' — '+Math.round(mins)+' MIN');
+    msgFrom('kmr','weather_'+type);
+    const el=$id('ticker-text');
+    el.style.animation='none'; void el.offsetWidth; el.style.animation='';
+    el.textContent='DJ KRM · WPLM 103.5 — '+w.line;
+  }
+  save();
+}
+function updateWeather(){
+  const w=$id('weather'); if(!w)return;
+  w.className=S.weather&&weatherActive(S.weather.type)&&S.weather.type!=='clear'?S.weather.type:'';
 }
 function updateEventBanner(){
   const b=$id('event-banner'); if(!b)return;
@@ -741,7 +779,7 @@ function openHeistPick(){
       <div class="hc-kind">${KIND_TXT[h.kind]}</div>
       <div class="hc-name">${h.name}</div>
       <div class="hc-risk">${RISK_TXT[h.risk]}</div>
-      <div class="hc-take">TAKE ${$$(Math.max(300,totalIncome()*90*RISK_MULT[h.risk]))}</div>
+      <div class="hc-take">TAKE ${$$(Math.max(300,totalIncome()*90*RISK_MULT[h.risk])*weatherTake())}</div>
       <div class="hc-d">${districtOf(h.d).name}${S.vault[h.id]?' · ✓ CLEARED':''}</div>
     </div>`).join('');
   $id('heist-pick').hidden=false; $id('heist-play').hidden=true; $id('drill-result').hidden=true;
@@ -758,7 +796,7 @@ function startHeist(h){
   const d=districtOf(h.d);
   const poster=eraImg(d);
   const base=Math.max(300,totalIncome()*90);
-  const take=base*RISK_MULT[h.risk]*(has('camille')?1.25:1);
+  const take=base*RISK_MULT[h.risk]*(has('camille')?1.25:1)*weatherTake();
   $id('heist-kicker').textContent=KIND_TXT[h.kind];
   $id('heist-name').textContent=h.name;
   $id('heist-play').innerHTML=`
@@ -1052,7 +1090,7 @@ function endHeist(){
   else if(d.h.kind==='boost')perf=d.miss===0?1:d.miss===1?.6:.3;
   else perf=d.hits>=3?1:d.hits===2?.6:d.hits===1?.35:0;
   const base=Math.max(300,totalIncome()*90);
-  const pay=busted?0:base*RISK_MULT[d.h.risk]*perf*(has('camille')?1.25:1)*(msgBuffActive('camille')?1.1:1);
+  const pay=busted?0:base*RISK_MULT[d.h.risk]*perf*(has('camille')?1.25:1)*(msgBuffActive('camille')?1.1:1)*weatherTake();
   // theater: gold or red wash
   const wash=document.createElement('div');
   wash.className=busted?'redwash':'goldwash';
@@ -1166,13 +1204,13 @@ function updateRadioFace(){
   const face=$id('radio'), name=$id('radio-name'), sub=$id('radio-sub');
   face.classList.remove('live'); void face.offsetWidth; face.classList.add('live');
   name.textContent=Radio.STATIONS[Radio.station].name;
-  sub.textContent=RADIO_SUBS[Radio.station%RADIO_SUBS.length];
+  sub.textContent=RADIO_SUBS[(S.era||1)-1][Radio.station%6];
   $id('radio-mute').innerHTML=Radio.muted?VOL_OFF:VOL_ON;
   $id('radio-mute').classList.toggle('muted',Radio.muted);
   $id('pr-mute').innerHTML=Radio.muted?VOL_OFF:VOL_ON;
   $id('pr-mute').classList.toggle('muted',Radio.muted);
   $id('pr-name').textContent=Radio.STATIONS[Radio.station].name.split('·')[0].trim();
-  $id('pr-sub').textContent=RADIO_SUBS[Radio.station%RADIO_SUBS.length];
+  $id('pr-sub').textContent=RADIO_SUBS[(S.era||1)-1][Radio.station%6];
 }
 function wireRadio(){
   if(!window.Radio)return;
@@ -1647,6 +1685,15 @@ const MSG_POOLS={
   },
   event_payday:{
     kmr:['First of the month energy — the whole city just got paid and your wash runs HOT. 📻','Payday rush, people. Fresh checks, fresh mistakes. The laundromat never sleeps. 📻','Direct deposit hit DIFFERENT today — the whole city\'s flush and foolish. 📻','Payday rush! Every laundry machine in Palmetro is working overtime. 📻'],
+  },
+  weather_rain:{
+    kmr:['Rain on the neon, people — scores pay a little less but the cops don\'t like getting wet either. 📻','It\'s POURING on the strip. The signs look better wet. So do the exits. 📻'],
+  },
+  weather_storm:{
+    kmr:['Thunder over Palmetro! Lightning\'s doing the security cameras a favor. Heat drains fast tonight. 📻','Storm\'s ripping through — even the Task Force went home. Best windows of the week. 📻'],
+  },
+  weather_heat:{
+    kmr:['Heatwave, people — everybody\'s washing SOMETHING tonight. Laundering runs hot while it lasts. 📻','It\'s a million degrees and the money\'s melting out of mattresses. Get it clean. 📻'],
   },
   districtUnlock:{
     kmr:['NEW TURF just opened up in Palmetro City and somebody\'s already moving in. This is DJ KRM, signing your lease. 📻','The map just got BIGGER. New money, new problems. You know the vibe. 📻','Another neighborhood just got a new landlord — and honey, the rent\'s about to be CRIMINAL. 📻','Maps being redrawn as I speak. Keep up. 📻'],
@@ -2383,7 +2430,9 @@ function renderLegacyApp(){
     btn.onclick=()=>{
       const to=+btn.dataset.era, cost=to===2?100:400;
       if(S.era>=to||S.era<to-1||S.respect<cost)return;
-      S.respect-=cost; S.era=to; applyDistrict(); updateLedger(); updateBadges(); updatePhoneGreet(); save();
+      S.respect-=cost; S.era=to; applyDistrict(); updateLedger(); updateBadges(); updatePhoneGreet();
+      if(window.Radio&&Radio.setEra){ Radio.setEra(to); S.radio.st=Radio.station; updateRadioFace(); }
+      save();
       window.Radio&&Radio.sfx.fanfare();
       if(to===2){
         modal('ERA II — PRESENT DAY',
@@ -2524,15 +2573,18 @@ setInterval(()=>{
     // state checks are pure + idempotent: they run even while the phone pauses the sim,
     // so "joined the crew" moments don't wait for you to close the menu
     checkLieuts(); checkQueens(); checkMilestones(); checkGarage();
-    maybeEvent(); dailyCheck(); updateEventBanner();
+    maybeEvent(); maybeWeather(); dailyCheck(); updateEventBanner();
     updateCards(t); updateHUD(t); updateLedger(); updateHeistBtn(t); updateBadges();
   }
 },TICK_MS);
 setInterval(()=>{ if(started){
   const el=$id('ticker-text');
   el.style.animation='none'; void el.offsetWidth; el.style.animation='';
-  // an active event owns the airwaves; otherwise the usual KRM patter
+  // airwaves priority: active event > active weather > usual KRM patter
   if(S.ev&&S.ev.until>now()){ el.textContent='DJ KRM · WPLM 103.5 — '+EVENTS[S.ev.type].line; return; }
+  if(S.weather&&S.weather.until>now()&&WEATHERS[S.weather.type]&&S.weather.type!=='clear'){
+    el.textContent='DJ KRM · WPLM 103.5 — '+WEATHERS[S.weather.type].line; return;
+  }
   tickIdx=(tickIdx+1)%TICKER.length;
   el.textContent='DJ KRM · WPLM 103.5 — '+TICKER[tickIdx];
 }},12000);
@@ -2543,7 +2595,7 @@ window.addEventListener('beforeunload',()=>{ if(started)save(); });
 function startGame(cont){
   $id('title-screen').style.display='none';
   $id('game').hidden=false;
-  started=true; sessionStart=now();
+  started=true; sessionStart=now(); updateWeather();
   // some browsers gate muted autoplay until a real gesture — retry on first interaction
   $id('game').addEventListener('pointerdown',()=>{ const v=$id('bg-video'); if(v.src&&v.paused)v.play().catch(()=>{}); },{once:false});
   applyDistrict(); renderUpgrades(); updateCards(now()); updateHUD(now()); updateLedger();
@@ -2567,6 +2619,7 @@ function boot(){
   if(window.Radio){
     Radio.setMuted(S.radio.muted);
     Radio.setStation(S.radio.st);
+    Radio.setEra&&Radio.setEra(S.era||1);
     wireRadio(); wirePhoneRadio();
     document.addEventListener('pointerdown',()=>Radio.init(),{once:true});
   }

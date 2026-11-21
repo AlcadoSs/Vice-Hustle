@@ -71,6 +71,27 @@ button{font-family:inherit;cursor:pointer;color:inherit;background:none;border:n
 #grain{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.09;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>")}
 
+/* ---------- weather ---------- */
+#weather{position:absolute;inset:0;z-index:2;pointer-events:none}
+#weather.rain{background:
+  linear-gradient(180deg,rgba(30,60,90,.16),rgba(20,45,70,.22)),
+  repeating-linear-gradient(103deg,transparent 0 10px,rgba(165,228,255,.30) 10px 13px,transparent 13px 24px),
+  repeating-linear-gradient(108deg,transparent 0 21px,rgba(140,205,255,.18) 21px 23px,transparent 23px 44px);
+  animation:rainfall .5s linear infinite}
+#weather.storm{background:
+  linear-gradient(180deg,rgba(20,35,60,.30),rgba(12,25,45,.38)),
+  repeating-linear-gradient(101deg,transparent 0 7px,rgba(180,232,255,.38) 7px 10px,transparent 10px 18px),
+  repeating-linear-gradient(106deg,transparent 0 15px,rgba(150,210,255,.24) 15px 17px,transparent 17px 33px);
+  animation:rainfall .32s linear infinite}
+#weather.storm::after{content:'';position:absolute;inset:0;background:#eaf6ff;opacity:0;
+  animation:bolt 7s steps(1) infinite}
+#weather.heat{background:linear-gradient(180deg,rgba(255,150,60,.10),rgba(255,110,40,.15) 65%,rgba(255,80,30,.10));
+  animation:heatshimmer 9s ease-in-out infinite alternate}
+@keyframes rainfall{to{background-position:0 130px,0 0}}
+@keyframes bolt{0%,86%{opacity:0}87%{opacity:.55}88%{opacity:0}91%{opacity:.35}92%,100%{opacity:0}}
+@keyframes heatshimmer{from{filter:saturate(1.05)}to{filter:saturate(1.18) brightness(1.04)}}
+@media (prefers-reduced-motion:reduce){#weather.rain,#weather.storm,#weather.storm::after,#weather.heat{animation:none}}
+
 /* HUD */
 #hud{position:relative;z-index:5;display:flex;align-items:flex-start;gap:14px;padding:10px 14px;
   background:linear-gradient(180deg,rgba(20,16,28,.9),rgba(20,16,28,.55) 80%,transparent)}
