@@ -2541,12 +2541,17 @@ function renderQueensApp(){
   let html='<div class="q-grid">';
   for(const q of QUEENS){
     const mine=!!S.queens[q.id];
-    html+=`<div class="q-card ${mine?'mine':'locked'}">
+    const nights=S.nights[q.id]||0, arc=S.qarc[q.id]||0;
+    const dots=mine?`<div class="q-arc">`+[0,1,2].map(i=>
+      `<i class="${arc>i?'on':''}"></i>`).join('')+`</div>`:'';
+    html+=`<div class="q-card ${mine?'mine':'locked'}" data-queen="${q.id}" data-tip="${mine?'Tap for her story':'HOW TO WIN HER: '+q.hint}">
       <div class="q-art"><img src="${q.pic}" alt="" onerror="this.remove()">
         ${mine?'<span class="q-withyou">WITH YOU</span>':`<span class="q-lock">${SVGS.lock}</span>`}</div>
       <div class="q-plate"><div class="q-name">${mine?q.name:'???'}</div>
         <div class="q-title">${q.title.toUpperCase()}</div>
-        ${mine?`<span class="q-perk">${qperked(q.id)?QUEEN_ARCS[q.id][2].fxNew:q.fx}${S.qarc[q.id]===3?' ✓':''}</span>`:`<span class="q-hint">${q.hint}</span>`}</div>
+        ${mine?`<span class="q-perk">${qperked(q.id)?QUEEN_ARCS[q.id][2].fxNew:q.fx}${arc===3?' ✓':''}</span>`:`<span class="q-hint">${q.hint}</span>`}
+        ${mine?`<span class="q-nights">${nights} NIGHT${nights===1?'':'S'} OUT</span>`:''}
+        ${dots}</div>
     </div>`;
   }
   html+='</div>';
@@ -2579,6 +2584,51 @@ function renderQueensApp(){
        window.Radio&&Radio.sfx.fanfare();
     renderQueensApp();
   };
+  // tap a Queen for her dossier — relationship, story progress, perk
+  $id('queens-body').querySelectorAll('.q-card').forEach(card=>{
+    card.onclick=()=>{
+      const q=QUEENS.find(x=>x.id===card.dataset.queen);
+      if(!q)return;
+      window.Radio&&Radio.sfx.tick();
+      if(!S.queens[q.id]){
+        modal(q.name.toUpperCase()+' — ???',
+          `<div class="story-art"><img src="${q.pic}" alt="" style="filter:grayscale(1) brightness(.4)"></div>
+           <p class="led-line onair">NOT IN YOUR LIFE YET</p>
+           <p class="story-beat">Win her over first: <b>${q.hint}</b>.</p>`,
+          [{label:'SOMEDAY',cls:'btn-primary',fn:closeModal}]);
+        return;
+      }
+      const nights=S.nights[q.id]||0, arc=S.qarc[q.id]||0;
+      const next=arc<3?`NEXT STORY AT <b>${QARC_STEPS[arc]} NIGHTS OUT</b> (${nights}/${QARC_STEPS[arc]})`:
+        `STORY COMPLETE — HER TRUST IS YOURS`;
+      const chapters=[0,1,2].map(i=>{
+        const done=arc>i, cur=arc===i;
+        return `<div class="qd-ch ${done?'done':cur?'cur':''}">
+          <span class="qd-num">${i+1}</span>
+          <span class="qd-t">${done||cur?QUEEN_ARCS[q.id][i].name:'???'}</span>
+          ${done?'<span class="qd-mark">✓</span>':cur?'<span class="qd-mark">▸</span>':''}
+        </div>`;
+      }).join('');
+      modal(q.name.toUpperCase(),
+        `<div class="story-art"><img src="${q.pic}" alt=""></div>
+         <p class="led-line onair">${q.title.toUpperCase()}</p>
+         <div class="qd-stats">
+           <span>NIGHTS OUT <b>${nights}</b></span>
+           <span>STORY <b>${arc}/3</b></span>
+           <span>PERK <b>${qperked(q.id)?'UPGRADED ✓':q.fx}</b></span>
+         </div>
+         <div class="qd-list">${chapters}</div>
+         <p class="story-beat" style="text-align:center">${next}</p>`,
+        [{label:arc>0&&arc<3?'REPLAY WHAT YOU KNOW':'CLOSE',cls:'btn-primary',fn:()=>{
+          closeModal();
+          if(arc>0&&arc<3){ // replay the last completed chapter, no reward
+            playStoryCard({title:q.name.toUpperCase()+' · '+QUEEN_ARCS[q.id][arc-1].name.toUpperCase(),
+              art:qarcArt(q.id,arc-1),beats:QUEEN_ARCS[q.id][arc-1].beats,
+              finalLabel:'BACK TO HER',onFinal:()=>renderQueensApp()});
+          }
+        }}]);
+    };
+  });
 }
 
 /* ---- HUSTLES app ---- */
