@@ -971,7 +971,7 @@ function iconHTML(r,size){
 }
 function cardHTML(r){
   return `<div class="card${r.front?' front':''}" data-id="${r.id}">
-    ${iconHTML(r)}
+    <div class="c-art${r.front?' front':''}"><img src="art/rackets/${r.id}.jpg" alt="" onerror="this.parentNode.classList.add('noart')"><span>${r.em||''}</span></div>
     <div class="c-main">
       <div class="c-name">${r.name}<span class="c-owned"></span></div>
       <div class="c-stats"></div>
