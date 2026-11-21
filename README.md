@@ -22,7 +22,15 @@
 
 ---
 
-**Vice Hustle** is a fan-made idle/tycoon game — an homage to the GTA VI hype and the 80s Miami-crime genre it resurrects. Start as a nobody with a borrowed Slim Jim on a seedy motel strip, and end up owning Star Island. The twist: **your money is a liability.** Rackets pay fast in *Dirty Cash*, but every dollar raises *Heat*, and Heat brings raids that confiscate everything you didn't launder.
+> **WPLM 103.5 — ON AIR…**
+>
+> *Palmetto City. Summer, 1986. The neon's buzzing, the tar's still soft, and you've got a borrowed Slim Jim, a seedy motel strip, and exactly one talent: getting paid.*
+>
+> *Here's what nobody tells you about dirty money — it's heavy. Every bill screams your name to the cops. Launder it, and it whispers instead. That's the whole game, hot stuff: run your rackets, feel the HEAT climb, wash the cash before the sirens find it, and take this city one district at a time — from the Motel Strip to Star Island, from 1986 to the chrome of 2049.*
+>
+> *The Queens are waiting. The crew's for hire. DJ KRM is watching. Stay tuned.*
+
+**Vice Hustle** is a fan-made idle/tycoon game — an homage to the GTA VI hype and the 80s Miami-crime genre it resurrects. The twist: **your money is a liability.** Rackets pay fast in *Dirty Cash*, but every dollar raises *Heat*, and Heat brings raids that confiscate everything you didn't launder into *Clean Money*. Cash out with The Big Score, spend your Respect, and change the decade — twice.
 
 Built as a no-framework, no-build, single-tab web game. All 121 illustrations are AI-generated with **Seedream**, all 20 videos (living district backgrounds, heist cinematics) with **SeedDance**, and the entire soundtrack is **synthesized live in your browser** with the Web Audio API — no audio files, eighteen procedural radio stations across three eras.
 
@@ -57,8 +65,8 @@ run rackets ──▶ DIRTY CASH ──▶ buy more rackets
                              THE BIG SCORE (prestige) ──▶ RESPECT ──▶ LEGACY ──▶ ERA II ──▶ ERA III
 ```
 
-- **Dirty Cash** — fast, spendable, *raidable*. **Clean Money** — laundered, safe, buys the empire.
-- **Heat 0–100** with four tiers; at 100 a Task Force taxes your income 25% until you cool off. Bribes, bent lawyers, and leaning on the right people help.
+- **Dirty Cash** — fast, spendable, *raidable*. **Clean Money** — laundered, safe, buys the empire. The valve between them is laundering, and the valve is always too small.
+- **Heat 0–100** with four tiers; at 100 a **Task Force** taxes your income 25% until you cool off. Bribes, bent lawyers, and leaning on the right people help.
 - **The Big Score** — cash the whole empire out, retire to the Keys, come back with permanent Legacy multipliers and eventually change the decade itself. Twice.
 
 ## ✨ What's inside
@@ -120,4 +128,4 @@ Vice Hustle is a **fan homage** and is **not affiliated with, endorsed by, or co
 
 ---
 
-*Palmetto City, 1986. The neon's on. The cops are counting.*
+*The neon's on. The cops are counting. **The city isn't for sale — and neither are you.*** 🔴 **ON AIR**
