@@ -508,7 +508,114 @@ function maybeWeather(){
 }
 function updateWeather(){
   const w=$id('weather'); if(!w)return;
-  w.className=S.weather&&weatherActive(S.weather.type)&&S.weather.type!=='clear'?S.weather.type:'';
+  const type=S.weather&&weatherActive(S.weather.type)?S.weather.type:'clear';
+  w.className=type!=='clear'?type:'';
+  startRain(type==='rain'?'rain':type==='storm'?'storm':null);
+}
+
+/* ---- canvas rain engine: depth-sorted drops, gusting wind, splashes, lightning ---- */
+let rainEng=null;
+function startRain(mode){
+  if(!mode||reducedMotion()||S.stills){ stopRain(); return; } // static tint covers reduced-motion & stills
+  if(rainEng&&rainEng.mode===mode)return;
+  stopRain();
+  const host=$id('weather');
+  const cv=document.createElement('canvas');
+  cv.id='rain-canvas'; host.appendChild(cv);
+  const x=cv.getContext('2d');
+  const eng={mode,raf:0,drops:[],splashes:[],bolt:0,nextBolt:0,gust:0,cv};
+  const DPR=Math.min(2,window.devicePixelRatio||1);
+  const size=()=>{
+    cv.width=innerWidth*DPR; cv.height=innerHeight*DPR;
+    cv.style.width=innerWidth+'px'; cv.style.height=innerHeight+'px';
+  };
+  size(); eng.resize=()=>size(); addEventListener('resize',eng.resize);
+  // three depth tiers, clearly stratified: far drizzle (faint/slow/thin) → mid → near streaks (bright/fast/thick)
+  const density=mode==='storm'?1.8:1;
+  const TIERS=[
+    {n:70, a:.12, w:1,   len:10, v:520, tilt:.10},
+    {n:45, a:.26, w:1.6, len:17, v:840, tilt:.16},
+    {n:26, a:.5,  w:2.6, len:32, v:1250,tilt:.22},
+  ];
+  TIERS.forEach((T,ti)=>{
+    for(let i=0;i<Math.round(T.n*density*DPR);i++){
+      const near=ti===2;
+      eng.drops.push({
+        x:Math.random()*(cv.width+300*DPR)-150*DPR, y:Math.random()*cv.height,
+        v:T.v*DPR*(.8+Math.random()*.4)*(mode==='storm'?1.2:1),
+        len:T.len*DPR*(.7+Math.random()*.6),
+        w:T.w*DPR, a:T.a*(.8+Math.random()*.4),
+        tilt:T.tilt*(.85+Math.random()*.3)*(Math.random()<.5?1:1.08), // slight per-drop angle variance
+        near
+      });
+    }
+  });
+  let last=performance.now();
+  const frame=t=>{
+    const dt=Math.min(.05,(t-last)/1000); last=t;
+    const W=cv.width,H=cv.height;
+    eng.gust=Math.sin(t/2600)*.35+Math.sin(t/900)*.15;       // slow wind gusting
+    x.clearRect(0,0,W,H);
+    // lightning (storm): scheduled strikes, double-blink profile
+    if(mode==='storm'){
+      if(t>eng.nextBolt){ eng.bolt=1; eng.nextBolt=t+4500+Math.random()*7000; }
+      if(eng.bolt>0){
+        eng.bolt=Math.max(0,eng.bolt-dt*3.2);
+        const f=eng.bolt>0.6?(eng.bolt-0.6)/0.4:eng.bolt*0.55;
+        x.fillStyle=`rgba(225,240,255,${(f*.32).toFixed(3)})`;
+        x.fillRect(0,0,W,H);
+      }
+    }
+    const lit=mode==='storm'&&eng.bolt>0?1+eng.bolt*1.6:1;
+    for(const d of eng.drops){
+      const drift=eng.gust*(d.near?300:150)*DPR+d.tilt*d.v*.55;
+      d.y+=d.v*dt; d.x+=drift*dt;
+      if(d.y>H+30*DPR){
+        // near drops splash at the ground line — always, brighter, longer-lived
+        if(d.near)eng.splashes.push({x:d.x,y:H-(3+Math.random()*30)*DPR,r:.5,life:1});
+        d.y=-40*DPR; d.x=Math.random()*(W+300*DPR)-150*DPR;
+      }
+      if(d.x<-160*DPR)d.x=W+140*DPR; else if(d.x>W+160*DPR)d.x=-140*DPR;
+      x.strokeStyle=`rgba(185,228,255,${(d.a*lit).toFixed(3)})`;
+      x.lineWidth=d.w;
+      x.beginPath();
+      x.moveTo(d.x,d.y);
+      x.lineTo(d.x-d.tilt*d.len-d.len*.06*(drift<0?-1:1),d.y-d.len);
+      x.stroke();
+    }
+    // splash ripples: expanding arcs + two rising ticks, fading out
+    for(let i=eng.splashes.length-1;i>=0;i--){
+      const s=eng.splashes[i];
+      s.r+=110*DPR*dt; s.life-=dt*2.1;
+      if(s.life<=0){ eng.splashes.splice(i,1); continue; }
+      x.strokeStyle=`rgba(185,228,255,${(s.life*.38).toFixed(3)})`;
+      x.lineWidth=1.2*DPR;
+      x.beginPath(); x.ellipse(s.x,s.y,s.r,s.r*.30,0,0,Math.PI*2); x.stroke();
+      if(s.life>.55){ // little crown: two short ticks jumping out of the puddle
+        const h=(s.life-.55)*22*DPR;
+        x.beginPath();
+        x.moveTo(s.x-s.r*.4,s.y); x.lineTo(s.x-s.r*.4-h*.22,s.y-h);
+        x.moveTo(s.x+s.r*.4,s.y); x.lineTo(s.x+s.r*.4+h*.22,s.y-h);
+        x.stroke();
+      }
+    }
+    eng.raf=requestAnimationFrame(frame);
+  };
+  eng.raf=requestAnimationFrame(frame);
+  // throttle watchdog: suspended renderers (idle tabs/panes) stall rAF — step the frame manually then
+  eng.watch=setInterval(()=>{
+    if(!rainEng||rainEng.cv!==cv)return;
+    if(performance.now()-last>250)frame(performance.now());
+  },120);
+  rainEng=eng;
+}
+function stopRain(){
+  if(!rainEng)return;
+  cancelAnimationFrame(rainEng.raf);
+  clearInterval(rainEng.watch);
+  removeEventListener('resize',rainEng.resize);
+  rainEng.cv.remove();
+  rainEng=null;
 }
 function updateEventBanner(){
   const b=$id('event-banner'); if(!b)return;
@@ -2671,7 +2778,7 @@ function renderSettingsApp(){
     </div>`;
   $id('stills-btn').onclick=()=>{
     S.stills=!S.stills; save();
-    stopVaultVideos();
+    stopVaultVideos(); updateWeather(); // rain engine drops out in stills mode, tint stays
     if(started) setBg(districtOf(S.active)); // apply/clear the district loop instantly (no radio side-effects)
     renderSettingsApp();
     window.Radio&&Radio.sfx.tick();
