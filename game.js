@@ -754,9 +754,10 @@ function wedgePath(cx,cy,r,deg,w){ // wedge centered at deg, width w°
   return `M ${cx} ${cy} L ${p(deg-w/2)} A ${r} ${r} 0 0 1 ${p(deg+w/2)} Z`;
 }
 function startDial(h,base){
-  const rounds=h.risk===1?5:h.risk===2?6:7;
+  const rounds=h.risk===1?3:h.risk===2?4:5;
+  const maxMiss=h.risk>=3?3:2;
   const dur=(2.5-h.risk*.37).toFixed(2);
-  Object.assign(base,{rounds,wedge:Math.random()*360,ww:40,started:false});
+  Object.assign(base,{rounds,maxMiss,wedge:Math.random()*360,ww:40,started:false});
   $id('heist-play').innerHTML=`
     <div id="dial-wrap">
       <svg class="dial" viewBox="0 0 220 220">
@@ -769,7 +770,7 @@ function startDial(h,base){
         <circle cx="110" cy="110" r="6" fill="#ffd977"/>
       </svg>
     </div>
-    <div id="dial-stats">CLICKS <b class="teal">0</b>/${rounds} · MISSES <b class="red">0</b>/4</div>
+    <div id="dial-stats">CLICKS <b class="teal">0</b>/${rounds} · MISSES <b class="red">0</b>/${maxMiss}</div>
     <div id="ct-help"><b style="color:var(--gold)">TAP THE DIAL TO START</b> — then tap when the needle crosses the gold wedge.<br>Crack it in ${rounds} clicks. 4 slips and you're busted.</div>`;
   const wrap=$id('dial-wrap');
   // start on first tap on the dial itself (needle parked at 12); subsequent dial taps are strikes
@@ -798,8 +799,8 @@ function dialStrike(){
     wrap.classList.remove('missflash'); void wrap.offsetWidth; wrap.classList.add('missflash');
     window.Radio&&Radio.sfx.bust();
   }
-  $id('dial-stats').innerHTML=`CLICKS <b class="teal">${d.hits}</b>/${d.rounds} · MISSES <b class="red">${d.miss}</b>/4`;
-  if(d.miss>=4||d.hits>=d.rounds){
+  $id('dial-stats').innerHTML=`CLICKS <b class="teal">${d.hits}</b>/${d.rounds} · MISSES <b class="red">${d.miss}</b>/${d.maxMiss}`;
+  if(d.miss>=d.maxMiss||d.hits>=d.rounds){
     d.over=true; wrap.classList.remove('running');
     window.removeEventListener('keydown',d.dialKey);
     setTimeout(endHeist,350);
@@ -1004,7 +1005,7 @@ function endHeist(){
   const d=drill; d.over=true; clearTimeout(drillTO); clearInterval(chaseTO);
   if(d.dialKey)window.removeEventListener('keydown',d.dialKey);
   if(d.chaseKey)window.removeEventListener('keydown',d.chaseKey);
-  const busted = d.h.kind==='drill'?d.miss>=4 : d.h.kind==='boost'?d.miss>=3 : false;
+  const busted = d.h.kind==='drill'?d.miss>=(d.maxMiss||4) : d.h.kind==='boost'?d.miss>=3 : false;
   let perf;
   if(d.h.kind==='drill'){const ratio=d.hits/(d.rounds||5);perf=ratio>=1?1:ratio>=.6?.7:ratio>=.4?.45:.2;}
   else if(d.h.kind==='boost')perf=d.miss===0?1:d.miss===1?.6:.3;
