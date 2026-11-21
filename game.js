@@ -123,14 +123,14 @@ const NIGHT_LINES=[
 /* ---------------- GARAGE · car collection ---------------- */
 const CARS=[
   {id:'stock',  name:'The Stock Coupé',  art:'art/cars/player.jpg',   own:true, hint:'the car you started with'},
-  {id:'runner', name:'Neon Runner',      art:'art/cars/g-runner.jpg', how:'win 3 street races',      test:s=>s.acts.swins>=3},
-  {id:'muscle', name:'Boardwalk Blown',  art:'art/cars/g-muscle.jpg', how:'win 10 street races',     test:s=>s.acts.swins>=10},
-  {id:'chrome', name:'Chrome Royale',    art:'art/cars/g-chrome.jpg', how:'win 25 street races',     test:s=>s.acts.swins>=25},
-  {id:'ghostgt',name:'Midnight GT',      art:'art/cars/g-ghost.jpg',  how:'win a race with every shift PERFECT'},
-  {id:'rocket', name:'Roxy\'s Red Rocket',art:'art/cars/g-rocket.jpg',how:'win 3 street races in a row'},
-  {id:'buggy',  name:'Swamp Buggy',      art:'art/cars/g-buggy.jpg',  how:'win 5 gator races',       test:s=>s.acts.gwins>=5},
-  {id:'gt2k',   name:'Millennium GT',    art:'art/cars/g-gt2k.jpg',   how:'enter Era II — Present Day', test:s=>s.era>=2},
-  {id:'vector', name:'2049 Vector',      art:'art/cars/g-vector.jpg', how:'enter Era III — 2049',    test:s=>s.era>=3},
+  {id:'runner', name:'Neon Runner',      art:'art/cars/g-runner.jpg', how:'win 3 street races',      test:s=>s.acts.swins>=3, who:'roxy'},
+  {id:'muscle', name:'Boardwalk Blown',  art:'art/cars/g-muscle.jpg', how:'win 10 street races',     test:s=>s.acts.swins>=10, who:'ray'},
+  {id:'chrome', name:'Chrome Royale',    art:'art/cars/g-chrome.jpg', how:'win 25 street races',     test:s=>s.acts.swins>=25, who:'vivienne'},
+  {id:'ghostgt',name:'Midnight GT',      art:'art/cars/g-ghost.jpg',  how:'win a race with every shift PERFECT', who:'ghost'},
+  {id:'rocket', name:'Roxy\'s Red Rocket',art:'art/cars/g-rocket.jpg',how:'win 3 street races in a row', who:'roxy'},
+  {id:'buggy',  name:'Swamp Buggy',      art:'art/cars/g-buggy.jpg',  how:'win 5 gator races',       test:s=>s.acts.gwins>=5, who:'yara'},
+  {id:'gt2k',   name:'Millennium GT',    art:'art/cars/g-gt2k.jpg',   how:'enter Era II — Present Day', test:s=>s.era>=2, who:'kmr'},
+  {id:'vector', name:'2049 Vector',      art:'art/cars/g-vector.jpg', how:'enter Era III — 2049',    test:s=>s.era>=3, who:'kmr'},
 ];
 function carArt(id){ const c=CARS.find(x=>x.id===id); return c?c.art:'art/cars/player.jpg'; }
 function garageUnlock(id){
@@ -139,6 +139,9 @@ function garageUnlock(id){
   S.garage[id]=true;
   toast('NEW RIDE — '+c.name.toUpperCase());
   window.Radio&&Radio.sfx.fanfare();
+  // the car's natural commentator texts you — KRM's broadcast covers it if they're not around yet
+  const who=c.who&&(c.who==='kmr'||S.lieuts[c.who]||S.queens[c.who])?c.who:'kmr';
+  msgFrom(who,'carUnlock');
   updateBadges(); refreshGarageIfOpen(); save();
 }
 function checkGarage(){
@@ -1675,6 +1678,14 @@ const MSG_POOLS={
     yara:{msg:'The swamp sent me. Kevin vouched for you. That is… significant. 🐊',right:1,opts:['I\'m honored.','Who is Kevin?'],fx:'Heat decays faster · 5 min'},
     destiny:{msg:'You\'re the one making all that noise. I LIKE noise. Let\'s make some together. 🎤',right:0,opts:['Front row at your show.','Let\'s make headlines.'],fx:'+10% income · 3 min'},
     vivienne:{msg:'I don\'t text. My assistant does. But she\'s busy. So. Here I am. 🛥️',right:1,opts:['The pleasure\'s mine.','Your yacht or mine?'],fx:'+10% laundering · 3 min'},
+  },
+  carUnlock:{
+    roxy:['New rubber in your garage — I could HEAR it from the strip. When do we run it? 🏁','Okay, that ride is CLEAN. Be honest: how fast are we going tonight? 🔥','Cars like that don\'t park themselves in your garage by accident. Respect. 🏁','I already told the strip about your new ride. Nobody argued. 🏁'],
+    ray:['Good metal. The causeway at 3AM does the rest. 🚬','Heard the engine from three blocks away. Beautiful noise.','That car and I are going to get along. Fill the tank.'],
+    ghost:['Black on black. The city won\'t see it coming. It rarely does.','You found the midnight one. It was always going to be you.','Some cars are escapes. This one is a disappearance.'],
+    yara:['The swamp gives its buggies only to those who respect the mud. Kevin approves. 🐊','That machine breathes wetland air. Bring it to the glades on Sunday. It misses home.'],
+    vivienne:['Chrome. Finally, a vehicle that matches the cutlery. 🛥️','I approve of the new acquisition. My valet does not — it outshines the sedan.','Polished, I hope? I\'ll inspect it personally. Bring gloves.'],
+    kmr:['NEW METAL in somebody\'s garage tonight — Palmetro heard that engine purr from here. 📻','The strip\'s got a new look and it RIDES. Show it off, you earned it. 📻','Fresh paint on the scene — this is DJ KRM, saluting the garage. 📻'],
   },
   nightOut:{
     solana:{msg:'Last night was perfect. The sand, the stars, the… everything. 🌊',right:1,opts:['Round two?','I can\'t stop smiling.'],fx:'+10% income · 3 min'},
