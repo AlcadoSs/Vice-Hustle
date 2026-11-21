@@ -120,6 +120,34 @@ const NIGHT_LINES=[
   'Vivienne tipped the valet with a Rolex.',
 ];
 
+/* ---------------- GARAGE · car collection ---------------- */
+const CARS=[
+  {id:'stock',  name:'The Stock Coupé',  art:'art/cars/player.jpg',   own:true, hint:'the car you started with'},
+  {id:'runner', name:'Neon Runner',      art:'art/cars/g-runner.jpg', how:'win 3 street races',      test:s=>s.acts.swins>=3},
+  {id:'muscle', name:'Boardwalk Blown',  art:'art/cars/g-muscle.jpg', how:'win 10 street races',     test:s=>s.acts.swins>=10},
+  {id:'chrome', name:'Chrome Royale',    art:'art/cars/g-chrome.jpg', how:'win 25 street races',     test:s=>s.acts.swins>=25},
+  {id:'ghostgt',name:'Midnight GT',      art:'art/cars/g-ghost.jpg',  how:'win a race with every shift PERFECT'},
+  {id:'rocket', name:'Roxy\'s Red Rocket',art:'art/cars/g-rocket.jpg',how:'win 3 street races in a row'},
+  {id:'buggy',  name:'Swamp Buggy',      art:'art/cars/g-buggy.jpg',  how:'win 5 gator races',       test:s=>s.acts.gwins>=5},
+  {id:'gt2k',   name:'Millennium GT',    art:'art/cars/g-gt2k.jpg',   how:'enter Era II — Present Day', test:s=>s.era>=2},
+  {id:'vector', name:'2049 Vector',      art:'art/cars/g-vector.jpg', how:'enter Era III — 2049',    test:s=>s.era>=3},
+];
+function carArt(id){ const c=CARS.find(x=>x.id===id); return c?c.art:'art/cars/player.jpg'; }
+function garageUnlock(id){
+  if(!id||S.garage[id])return;
+  const c=CARS.find(x=>x.id===id); if(!c)return;
+  S.garage[id]=true;
+  toast('NEW RIDE — '+c.name.toUpperCase());
+  window.Radio&&Radio.sfx.fanfare();
+  updateBadges(); refreshGarageIfOpen(); save();
+}
+function checkGarage(){
+  for(const c of CARS){
+    if(c.own||S.garage[c.id]||!c.test)continue;
+    if(c.test(S))garageUnlock(c.id);
+  }
+}
+
 const MILESTONES=[
   {id:'car1',    name:'Where It All Begins',  hint:'buy your first racket in the Motel Strip', test:s=>(s.r.cars||{n:0}).n>=1},
   {id:'raid1',   name:'Slipped the Cuffs',    hint:'survive your first raid',                  test:s=>s.stats.raids>=1},
@@ -137,6 +165,7 @@ const MILESTONES=[
   {id:'vault3',  name:'Triple Threat',        hint:'first-clear 3 different heists (Vault)',   test:s=>Object.keys(s.vault).length>=3},
   {id:'scr10',   name:'Lucky Fingers',        hint:'scratch 10 lotto tickets',                 test:s=>s.acts.scratch>=10},
   {id:'big1',    name:'The Big Score',        hint:'retire once via The Big Score (prestige)', test:s=>s.respectGranted>=1},
+  {id:'garage3', name:'Motor Empire',         hint:'collect 3 rides in the Garage',          test:s=>Object.keys(s.garage||{}).length+1>=3},
 ];
 
 const TICKER=[
@@ -169,8 +198,9 @@ function defaultState(){
     unlocked:1, active:1, r:{}, up:{lawyer:0,scanner:0,washers:0},
     respect:0, respectGranted:0, spent:{empire:0,laundry:0,whisper:0,kick:0},
     vault:{}, lieuts:{}, lastSal:0, era:1,
-    radio:{st:0,muted:true}, stills:false, acts:{races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0},
+    radio:{st:0,muted:true}, stills:false, acts:{races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0,sstreak:0},
     queens:{}, inspiredUntil:0, nightCd:0, mile:{}, ev:null, daily:null,
+    garage:{}, garageSel:'stock',
     msgs:[], unreadMsgs:0, msgBuff:null, deploy:{},
     heistReadyAt:0, frenzy:0, ts:Date.now(),
     stats:{dirty:0,clean:0,raids:0,heists:0},
@@ -299,7 +329,9 @@ function load(){
     S.stills=!!d.stills;
     S.ev=d.ev&&d.ev.until>now()?d.ev:null; // expired events never survive a reload
     S.daily=d.daily&&d.daily.date?d.daily:null;
-    S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0},d.acts);
+    S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0,sstreak:0},d.acts);
+    S.garage=d.garage||{};
+    S.garageSel=(d.garageSel==='stock'||(d.garage&&d.garage[d.garageSel]))?d.garageSel:'stock';
     S.queens=d.queens||{};
     S.mile=d.mile||{};
     S.msgs=Array.isArray(d.msgs)?d.msgs:[];
@@ -820,7 +852,7 @@ function startChase(h,base){
       <img id="ch-you" class="ch-car" alt="" style="top:56%;left:30%">
     </div>
     <div id="chase-stats">CRASHES <b class="red">0</b>/3 · TAP TO WEAVE</div>
-    <div id="ct-help">Tap the TOP or BOTTOM half of the strip to switch lanes.<br>Survive ${Math.round(durMs/1000)}s. 3 crashes and they cuff you.</div>`;  keyedCar('art/cars/player.jpg',u=>{const el=$id('ch-you');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
+    <div id="ct-help">Tap the TOP or BOTTOM half of the strip to switch lanes.<br>Survive ${Math.round(durMs/1000)}s. 3 crashes and they cuff you.</div>`;  keyedCar(carArt(S.garageSel),u=>{const el=$id('ch-you');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
   keyedCar('art/cars/police.jpg',u=>{const el=$id('ch-police');if(el)el.src=u||CAR_SIDE('#1c1132','#58f7ff');});
   const stage=$id('chase-stage');
   stage.onpointerdown=e=>{
@@ -1217,9 +1249,9 @@ function openStreetRace(){
      <p class="led-line" style="text-align:center">STAKE ${$$(stake)} · WIN ${$$(stake*2*(has('roxy')?2:1))}</p>`,
     [{label:'BAIL',cls:'btn-ghost',fn:()=>{dragR=null;cancelAnimationFrame(dragRAF);closeModal();}}]);
   // painted sprites, chroma-keyed off the green screen; drawn SVG fallback
-  keyedCar('art/cars/player.jpg',u=>{const el=$id('you-sv');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
+  keyedCar(carArt(S.garageSel),u=>{const el=$id('you-sv');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
   keyedCar('art/cars/rival.jpg',u=>{const el=$id('rival-sv');if(el)el.src=u||CAR_SIDE('#7a2f55','#ff5d7a');});
-  dragR={rpm:0,dir:1,rate:.55,gear:1,mph:0,over:false,last:0,running:false,stage:'tree',stake};
+  dragR={rpm:0,dir:1,rate:.55,gear:1,mph:0,over:false,last:0,running:false,stage:'tree',stake,perfects:0};
   const tree=$id('tree').children;
   const modalBox=$id('modal-body');
   let tstep=0;
@@ -1283,7 +1315,7 @@ function shiftDrag(){
   const r=dragR; if(!r||r.over)return;
   const rpm=needleRpm(); r.rpm=rpm;
   let gain,word,cls;
-  if(rpm>=82&&rpm<96){gain=28;word='PERFECT SHIFT!';cls='teal';}
+  if(rpm>=82&&rpm<96){gain=28;word='PERFECT SHIFT!';cls='teal';if(dragR)dragR.perfects++;}
   else if(rpm>=58){gain=19;word='GOOD';cls='';}
   else{gain=6;word='BOGGED…';cls='heat-up';}
   r.mph+=gain; r.rate+=.1;
@@ -1301,7 +1333,11 @@ function shiftDrag(){
 function endDrag(){
   const r=dragR;r.over=true;r.cleanup&&r.cleanup();
   const win=r.mph>=100, pay=r.stake*2*(has('roxy')?2:1)*(msgBuffActive('roxy')?1.1:1);
-  if(win){S.acts.swins++;S.dirty+=pay;payToast(pay);}
+  if(win){
+    S.acts.swins++;S.acts.sstreak=(S.acts.sstreak||0)+1;S.dirty+=pay;payToast(pay);
+    if(r.perfects>=5)garageUnlock('ghostgt');   // a flawless run — every shift perfect
+    if(S.acts.sstreak>=3)garageUnlock('rocket'); // three straight wins
+  }else S.acts.sstreak=0;
   const st=$id('sv-stage');
   if(st){
     if(win){
@@ -1876,6 +1912,7 @@ function showApp(name){
   else if(name==='pulse'){renderPulseApp();markMsgsRead();}
   else if(name==='deploy')renderDeployApp();
   else if(name==='casino')renderCasinoApp();
+  else if(name==='garage')renderGarageApp();
   else if(name==='settings')renderSettingsApp();
 }
 function openPhone(app){
@@ -1916,6 +1953,7 @@ function updateBadges(){
   set('hustles', rcd>0?mmss(rcd/1000):null, true);
   const ccd=S.acts.ccd-now();
   set('casino', ccd>0?mmss(ccd/1000):null, true);
+  set('garage', CARS.filter(c=>!c.own&&!S.garage[c.id]&&c.test&&c.test(S)).length||null);
   const cleared=Object.keys(S.vault).length;
   set('vault', cleared?cleared+'/12':null);
   set('crew', LIEUTS.filter(l=>!S.lieuts[l.id]&&l.unlock(S)).length||null);
@@ -2161,6 +2199,42 @@ function renderCasinoApp(){
 function refreshCasinoIfOpen(){
   const scr=$id('scr-casino');
   if(scr&&scr.classList.contains('on'))renderCasinoApp();
+}
+
+/* ---- GARAGE app ---- */
+function renderGarageApp(){
+  const owned=CARS.filter(c=>c.own||S.garage[c.id]).length;
+  $id('garage-sub').textContent=owned+'/'+CARS.length+' RIDES · '+CARS.find(c=>c.id===S.garageSel).name.toUpperCase();
+  let html=`<div class="g-led">YOUR RIDE RUNS THE NIGHT DRAG &amp; EVERY GETAWAY — TAP TO PICK</div><div class="g-grid">`;
+  for(const c of CARS){
+    const mine=c.own||!!S.garage[c.id], sel=S.garageSel===c.id;
+    html+=`<div class="g-card${mine?'':' locked'}${sel?' sel':''}" data-car="${c.id}" data-tip="${c.name}${mine?(sel?' — ON THE STRIP. Your pick for Night Drag and getaways.':' — tap to make this your ride.'):' — HOW TO EARN: '+(c.how||'')+'.'}">
+      <div class="g-art"><img data-src="${c.art}" alt=""></div>
+      <div class="g-name">${mine?c.name:'???'}</div>
+      <div class="g-how">${mine?(sel?'ON THE STRIP':c.hint||'collected'):(c.how||'')}</div>
+      ${mine?'':`<span class="q-lock">${SVGS.lock}</span>`}
+      ${sel?'<span class="g-ribbon">ON THE STRIP</span>':''}
+    </div>`;
+  }
+  html+='</div>';
+  $id('garage-body').innerHTML=html;
+  // chroma-key each car off its green screen onto the garage wall
+  $id('garage-body').querySelectorAll('.g-art img').forEach(img=>{
+    keyedCar(img.dataset.src,u=>{ img.src=u||CAR_SIDE('#2a6f68','#16e0bd'); });
+  });
+  $id('garage-body').querySelectorAll('.g-card').forEach(card=>{
+    card.onclick=()=>{
+      const id=card.dataset.car, c=CARS.find(x=>x.id===id);
+      if(!c||!(c.own||S.garage[id])){ toast('LOCKED — '+((c&&c.how)||'').toUpperCase()); return; }
+      if(S.garageSel===id)return;
+      S.garageSel=id; save(); renderGarageApp();
+      window.Radio&&Radio.sfx.tick();
+    };
+  });
+}
+function refreshGarageIfOpen(){
+  const scr=$id('scr-garage');
+  if(scr&&scr.classList.contains('on'))renderGarageApp();
 }
 
 /* ---- VAULT app · TAPE WALL ---- */
@@ -2430,7 +2504,7 @@ setInterval(()=>{
     if(!isPaused())sim(dt,t);
     // state checks are pure + idempotent: they run even while the phone pauses the sim,
     // so "joined the crew" moments don't wait for you to close the menu
-    checkLieuts(); checkQueens(); checkMilestones();
+    checkLieuts(); checkQueens(); checkMilestones(); checkGarage();
     maybeEvent(); dailyCheck(); updateEventBanner();
     updateCards(t); updateHUD(t); updateLedger(); updateHeistBtn(t); updateBadges();
   }
