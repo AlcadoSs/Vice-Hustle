@@ -1119,7 +1119,7 @@ function confirmUnlock(d){
     [{label:'UNLOCK',cls:'btn-primary',fn:()=>{
         if(S.clean<d.unlock){toast('NOT ENOUGH CLEAN MONEY');return;}
         S.clean-=d.unlock; S.unlocked=d.id; S.active=d.id; applyDistrict(); checkLieuts();
-        msgFrom(Math.random()<.5?'kmr':'ray','districtUnlock');
+        msgFrom(['kmr','ray','sal','rosa','ana','tang','betty'][Math.floor(Math.random()*7)],'districtUnlock');
         toast(d.name+' IS OPEN FOR BUSINESS');
         setTimeout(()=>unlockChapter(d.id), 1400); // the tape unspools once the confetti settles
      }},
@@ -2120,6 +2120,10 @@ const MSG_CHAR={
   sal:     {name:'Sal',      pic:'art/portraits/sal.jpg',  em:'🕴️'},
   kmr:     {name:'DJ KRM',   pic:'art/portraits/kmr.jpg',  em:'🎧'},
   ghost:   {name:'Ghost',    pic:'art/portraits/ghost.jpg',em:'👤'},
+  betty:   {name:'Miss Betty',pic:'art/portraits/betty.jpg',em:'🧺'},
+  rosa:    {name:'Capitana Rosa',pic:'art/portraits/rosa.jpg',em:'⚓'},
+  ana:     {name:'Dr. Ana',  pic:'art/portraits/ana.jpg',  em:'🩺'},
+  tang:    {name:'Tangerine Dream',pic:'art/portraits/tang.jpg',em:'🍊'},
   system:  {name:'PALMETROCOM',pic:'',                      em:'📡'},
 };
 const MSG_PHOTOS={
@@ -2129,10 +2133,14 @@ const MSG_PHOTOS={
   yara:['art/photos/yara-gator.jpg','art/photos/yara-airboat.jpg','art/photos/yara-campfire.jpg','art/photos/yara-market.jpg'],
   destiny:['art/photos/destiny-stage.jpg','art/photos/destiny-studio.jpg','art/photos/destiny-limo.jpg','art/photos/destiny-crowd.jpg'],
   vivienne:['art/photos/vivienne-yacht.jpg','art/photos/vivienne-desk.jpg','art/photos/vivienne-gallery.jpg','art/photos/vivienne-estate.jpg'],
-  ray:['art/photos/ray-bar.jpg'],
-  sal:['art/photos/sal-desk.jpg'],
-  kmr:['art/photos/kmr-studio.jpg'],
-  ghost:['art/photos/ghost-dark.jpg'],
+  ray:['art/photos/ray-bar.jpg','art/photos/ray-causeway.jpg'],
+  sal:['art/photos/sal-desk.jpg','art/photos/sal-phone.jpg'],
+  kmr:['art/photos/kmr-studio.jpg','art/photos/kmr-tower.jpg'],
+  ghost:['art/photos/ghost-dark.jpg','art/photos/ghost-rooftop.jpg'],
+  betty:['art/photos/betty-laundry.jpg'],
+  rosa:['art/photos/rosa-docks.jpg'],
+  ana:['art/photos/ana-clinic.jpg'],
+  tang:['art/photos/tang-studio.jpg'],
 };
 function pickPhoto(from){
   const ph=MSG_PHOTOS[from];
@@ -2150,6 +2158,10 @@ const MSG_POOLS={
     sal:['I logged it as "consulting fees." Nobody reads the footnotes. 💼','Fifteen phone calls. FIFTEEN. Worth it for that take.'],
     ghost:['The city blinks. You were the eyelid.','Good work leaves no signature. Yours is improving.'],
     kmr:['Someone just pulled a SCORE in Palmetro City — you know who you are. The city\'s TALKING. 📻','That last job? FIRE. This is DJ KRM and I approve. 📻','ANOTHER one for the books — Palmetro\'s finest are BESIDE themselves. 📻','Big score energy on the airwaves tonight. Stay shiny, you beautiful crook. 📻'],
+    betty:['Sweetheart, that dirty money is coming out NICE. I run the best wash in three counties. 🧺','I folded your cut into the towel stack. Third from the top. Don\'t ask.'],
+    rosa:['Heard the sirens swing wide around the docks tonight. Imagine that. ⚓','That cargo you "found"? Already on a boat to anywhere. Capitana\'s word.'],
+    ana:['Ay, big take! I kept something scaly as a bonus. You\'ll love it. Or it bites you. 50/50. 🩺'],
+    tang:['Money is just paint that hasn\'t dried yet. Tonight? Masterpiece. 🍊'],
   },
   heistBust:{
     solana:['Oh no. Are you okay, hot stuff? Come to the beach, the salt air fixes everything. 🌊','Babe. Breathe. The sun still rose. It always does.','Come here. Sit. The waves will talk and we won\'t.','Every king wipeouts sometimes. The ocean says so.'],
@@ -2162,6 +2174,10 @@ const MSG_POOLS={
     sal:['I may have handled it. Don\'t ask how. Don\'t ask how much. 💼','Okay so the good news is you\'re not in a cell. The bad news is everything else.','NEW plan. There\'s always a new plan. There HAS to be.','I burned a favor back there. A big one. We\'ll discuss the invoice later.'],
     ghost:['I was never there. You were never here. Continue.','Ashes make good soil. Plant again.','They celebrated tonight. Remember their faces.'],
     kmr:['Rough night in Palmetro City — even legends eat asphalt sometimes. Dust off. 📻'],
+    betty:['Oh honey. Come sit, I\'ll put the kettle on. Bad nights wash out same as anything. 🧺'],
+    rosa:['Every captain runs aground once. The sea keeps no grudge if you pay your dues. ⚓','Crew\'s fine, boat\'s fine. We go again at dawn.'],
+    ana:['You should see the OTHER guy\'s sutures. Sit still, this won\'t hurt. Much. 🩺'],
+    tang:['The gallery burned down in \'81. I painted the fire INSURANCE check by hand. We rebuild. 🍊'],
   },
   raidSurvived:{
     sal:['The scanners lit up, I made three calls, it\'s handled. You owe me. 💼','That was close. I aged a decade. My heart can\'t do this.','They took SOME of it. Could\'ve been ALL of it. Silver linings! Right?!'],
@@ -2180,6 +2196,8 @@ const MSG_POOLS={
     ghost:['The city has teeth tonight. Disappear.','They know your face. Change it.','Hunters want movement. Be furniture.'],
     vivienne:['My lawyers smell billable hours. Count yours. 🛥️'],
     kmr:['Task Force in the streets, people — if you\'re dirty, tonight you\'re INVISIBLE. 📻','Palmetro\'s finest brought the big dogs. Walk slow, smile less. 📻'],
+    betty:['Every machine in the laundromat just stopped at once. That\'s never good. 🧺','Sweetheart, tonight we wash SLOW. Cool wash, cold trail.'],
+    rosa:['Harbor\'s crawling with feds. Nothing floats tonight. NOTHING. ⚓'],
   },
   event_crackdown:{
     kmr:['Word from the scanner: EVERYTHING is heat right now. Cool it or lose it. DJ KRM, watching the watchmen. 📻','Blue lights on every corner, city-wide. If it\'s dirty, it\'s a target tonight. 📻','Sweep\'s on and the sweep\'s WIDE — even the pigeons are lawyering up tonight. 📻','Scanner says crackdown. History says outlast. Cool heads, hot cash. 📻'],
@@ -2189,6 +2207,7 @@ const MSG_POOLS={
   },
   event_payday:{
     kmr:['First of the month energy — the whole city just got paid and your wash runs HOT. 📻','Payday rush, people. Fresh checks, fresh mistakes. The laundromat never sleeps. 📻','Direct deposit hit DIFFERENT today — the whole city\'s flush and foolish. 📻','Payday rush! Every laundry machine in Palmetro is working overtime. 📻'],
+    betty:['Payday, sweetheart! Every machine spinning, both dryers roaring. Bring quarters and a smile. 🧺'],
   },
   weather_rain:{
     kmr:['Rain on the neon, people — scores pay a little less but the cops don\'t like getting wet either. 📻','It\'s POURING on the strip. The signs look better wet. So do the exits. 📻'],
@@ -2208,6 +2227,10 @@ const MSG_POOLS={
     sal:['I pulled the permits. Don\'t ask what it cost me. The new district is yours. 💼','The paperwork alone nearly killed me. You\'re welcome. Again.'],
     solana:['New streets means a new beach nearby, right? Say yes. 🌴'],
     camille:['I\'ll host the opening. Invite everyone who matters, and two who don\'t. 🥂'],
+    rosa:['New docks in the empire? Finally, a shore worth guarding. The Capitana salutes. ⚓'],
+    ana:['New territory means new SPECIMENS. Pack the tranquilizer darts. 🩺'],
+    tang:['A new district is just a blank canvas that owes us money. I\'ll prime it. 🍊'],
+    betty:['More neighborhoods, more laundry. Sweetheart, I need QUARTERS. 🧺'],
   },
   milestone:{
     kmr:['SHOUTOUT to the hustler making MOVES in Palmetro City. The streets know. 📻','Somebody just hit a MILESTONE and the city\'s feeling it. This is DJ KRM. 📻','Another badge on the wall for Palmetro\'s favorite problem. The city FEELS you. 📻','Milestone o\'clock! Somebody pour something expensive. 📻'],
@@ -2219,6 +2242,10 @@ const MSG_POOLS={
     camille:['Champagne. The good cellar. Immediately. 🥂'],
     ray:['Notch on the belt. Get more notches.'],
     sal:['This is legally significant and emotionally exhausting. Proud of you. 💼'],
+    betty:['I put your clipping on the fridge with a magnet shaped like Florida. 🧺'],
+    rosa:['The dock crews toasted your name with rum and bad coffee. Capitana approves. ⚓'],
+    ana:['A milestone! I shall celebrate by microchipping something. 🩺'],
+    tang:['History remembers brushstrokes, not bank wires. But tonight — both. 🍊'],
   },
   idleReturn:{
     solana:['Where have you BEEN? The beach missed you. So did I. 🌴','Hot stuff, your tan is fading. This is unacceptable.','The tide came in and out, like, a hundred times. I counted. You owe me company. 🌊','Saved you a towel. It\'s the little things.'],
@@ -2230,6 +2257,10 @@ const MSG_POOLS={
     ray:['Car\'s gassed. City\'s the same. You weren\'t missed. (You were.)','Held your seat at the bar. It cost me a favor and a round.'],
     sal:['Everything\'s fine! Mostly fine! Sixty percent fine! Welcome back! 💼','I filed the paperwork under "later." Later is now.'],
     kmr:['Look who\'s BACK in Palmetro City — the legend returns, right here on your station. 📻'],
+    betty:['Sweetheart, your rackets went unwashed for DAYS. I held the fort. Bring quarters. 🧺','Kettle\'s on. The machines missed you. So did I, but the machines are louder about it.'],
+    rosa:['The harbor kept your berth. Cost me two fists and a bribe. Worth it. ⚓','Boats ran, crates moved, nobody sank. You\'re welcome. Welcome back.'],
+    ana:['Kevin 2 got into the anesthetic cabinet. Kevin 2 is now VERY relaxed. Come see. 🩺','The clinic ran fine. I may have patched a smuggler or three. They paid in pastries.'],
+    tang:['I painted your absence. It\'s orange and weeping. Very valuable now. 🍊','The forgery queue reached the DOOR. Manage your empire, yes, but manage MY deadlines.'],
   },
   queenUnlock:{
     solana:{msg:'So you\'re the one they\'re talking about. I like the car. I like the jacket more. 🏖️',right:1,opts:['Grab a drink?','Wanna see my tan lines?'],fx:'+10% income · 3 min'},
