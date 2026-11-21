@@ -203,29 +203,168 @@ function checkChapters(){ // idempotent — covers saves that unlocked mid-load
     if(S.unlocked>=ch.d&&!S.stapes[ch.d]){ unlockChapter(ch.d); return; } // one at a time — never stack modals
   }
 }
-function playChapter(ch, fresh){
+/* generic beat-by-beat story card (KRM tapes + queen arcs) */
+function playStoryCard({title, art, beats, kicker='ON AIR…', finalLabel='CONTINUE', finalLine='', onFinal}){
   let i=0;
-  const reward=fresh?ch.rp:0;
   const show=()=>{
-    const last=i>=ch.beats.length;
-    const rewardLine=last&&fresh
-      ?`<p class="led-line" style="color:var(--gold)">STORY REWARD — +${ch.rp} RESPECT${ch.d===6?' · THE BROADCAST VAN IS YOURS':''}</p>`:'';
-    modal(`THE KRM TAPES · CH.${STORY.indexOf(ch)+1} — ${ch.name}`,
-      `<div class="story-art"><img src="${ch.art}" alt=""></div>
-       <p class="led-line onair">ON AIR…</p>
-       <p class="story-beat">${last?'♪ '+ch.beats[ch.beats.length-1]:ch.beats[i]}</p>
-       ${rewardLine}`,
-      [{label:last?(fresh?'CLAIM THE TAPE':'REPLAY AGAIN'):'CONTINUE',cls:'btn-primary',fn:()=>{
+    const last=i>=beats.length;
+    modal(title,
+      `<div class="story-art"><img src="${art}" alt=""></div>
+       <p class="led-line onair">${kicker}</p>
+       <p class="story-beat">${last?'♪ '+beats[beats.length-1]:beats[i]}</p>
+       ${last&&finalLine?`<p class="led-line" style="color:var(--gold)">${finalLine}</p>`:''}`,
+      [{label:last?finalLabel:'CONTINUE',cls:'btn-primary',fn:()=>{
         if(!last){ i++; show(); return; }
-        closeModal();
-        if(fresh){
-          S.respect+=ch.rp;
-          if(ch.d===6)garageUnlock('krmvan');
-          updateBadges(); save(); refreshVaultIfOpen();
-        }
+        closeModal(); onFinal&&onFinal();
       }}]);
   };
   show();
+}
+function playChapter(ch, fresh){
+  playStoryCard({
+    title:`THE KRM TAPES · CH.${STORY.indexOf(ch)+1} — ${ch.name}`,
+    art:ch.art, beats:ch.beats,
+    finalLabel:fresh?'CLAIM THE TAPE':'REPLAY AGAIN',
+    finalLine:fresh?`STORY REWARD — +${ch.rp} RESPECT${ch.d===6?' · THE BROADCAST VAN IS YOURS':''}`:'',
+    onFinal:()=>{
+      if(fresh){
+        S.respect+=ch.rp;
+        if(ch.d===6)garageUnlock('krmvan');
+        updateBadges(); save(); refreshVaultIfOpen();
+      }
+    },
+  });
+}
+
+/* ---------------- QUEEN STORY ARCS · three chapters each, told on nights out ---------------- */
+// chapter N unlocks at S.nights[qid] >= N,N+2,N+5 (1, 3, 6 nights); ch.3 pays the permanent perk upgrade
+const QUEEN_ARCS={
+  solana:[
+    {name:'Salt Water',beats:[
+      'The bonfire\'s low. She draws circles in the sand with her heel. "Nobody knows this about me, hot stuff — before the beach, before any of it? I bartended on the pier. Two years. Nobody tipped.',
+      '"Then one night a guy tried to skip the tab, and I chased him down the boardwalk in heels. The whole bar cheered. Owner gave me a cut of the door that night. First money that ever felt MINE."',
+      'She looks up, firelight in her eyes. "I still know every bartender from here to the Glades. Next round\'s on them — watch the bribe money dry up."']},
+    {name:'The Lifeguard Tower',beats:[
+      'She\'s waiting up the tower, bare feet swinging. "My sister used to sit right here. She\'s the reason I came to Palmetro. She\'s also… the reason I keep people at arm\'s length."',
+      '"When the cops swept the beach in \'84, she took the fall for a guy who wouldn\'t even write her from county. I bailed her out with everything I had. Everything. That\'s when I learned what money is FOR."',
+      '"You\'re the first person I\'ve told. Don\'t make me regret it — and next time the heat\'s on you? Call me first. I know which palms the cops hide behind."']},
+    {name:'High Tide',beats:[
+      'She\'s got a folder of receipts spread on a towel. "Remember the pier? I bought it. Quietly. And the tiki bar, and the jet-ski concession. The whole BEACH answers to me now — they just don\'t know it yet."',
+      '"Here\'s my problem. Cops cost me money. YOUR cops cost you money. Same wallets, same captains. So I made calls. The captains know my voice now — and they\'ll learn yours is covered too."',
+      'She hands you a slip of paper with one phone number. "My fixer\'s number. Bribes drop to a whisper from tonight. And hot stuff?" — she\'s already walking away — "you\'re past arm\'s length now."'],
+      fxNew:'Bribes cost 65% less'},
+  ],
+  camille:[
+    {name:'The Velvet Rope',beats:[
+      'Back booth, closed restaurant. "Darling, do you know what a hostess actually sells? Not tables. ACCESS. Ten years I\'ve stood at the rope deciding who exists tonight."',
+      '"I kept a ledger. Every promoter, councilman, captain — what they drink, who they\'re hiding, what they whisper at 2AM. My little black book could burn this city down."',
+      '"Yours now, partially. The HEIST side of it. The fence in 3, the buyers in 6 — their appetites, their margins. Your takes will fatten from tonight."']},
+    {name:'Champagne Problems',beats:[
+      'Penthouse floor. She\'s not drinking. "The man who trained me — Marco. He taught me the rope, the ledger, the taste for this." A pause. "Marco drowned off Star Island in \'82. They called it an accident."',
+      '"It wasn\'t. He knew what I know, and he wouldn\'t sell it. I\'ve spent five years being USEFUL to everyone who might\'ve ordered it. That\'s my whole game, darling. Being too useful to drown."',
+      '"You\'re the first person I\'ve said that to out loud. Let\'s not make it a habit — but tonight, the cellar\'s open, and the ledger\'s yours."']},
+    {name:'Hostess of the Year',beats:[
+      'The gala she hosts every year — and this time she pulls you past the rope to stand beside her. "Notice anything, darling? Look at the room. Every face that ruined someone\'s life for money is in THIS room."',
+      '"And every one of them needs a favor now. The ledger became something else: a machine. I stopped asking its price. It asks THEIRS." She smiles at the crowd like a blade.',
+      '"The machine likes you. From tonight your heists run through my buyers — tell the crew: forty percent on top, and Marco\'s ghost can toast us both."'],
+      fxNew:'Heist takes +40%'},
+  ],
+  roxy:[
+    {name:'Foul Start',beats:[
+      'She\'s under her car, just legs sticking out. "Hand me the 3/8ths. No, the OTHER — there. So. You wanna know why I race?"',
+      '"First money I ever made was delivering parts for a chop shop at fifteen. My brother drove. He was GOOD. Then Nitro Kane offered him a race with the car still on the shop\'s books. He wrecked. They took our house for the parts money."',
+      '"Nitro still races out by the docks. Every win of yours against his crews, I pay double now. We\'re gonna bankrupt that man slow."']},
+    {name:'The Night Shift',beats:[
+      'She\'s got the hood up on YOUR car at 3AM, tuning it. "Hand me that light. So Kane knows we\'re coming. He sent guys to the garage this week. I moved everything. Nothing they can torch."',
+      '"My brother — he\'s in Tampa now, builds engines, won\'t come back. Sent me this." A worn wrench. "Says if I\'m staying, I should race like I mean it. Like family\'s watching. Because now somebody is."',
+      '"You treat my people right, I treat your engine right. That\'s the whole deal. Paint\'s drying — take her around the block."']},
+    {name:'Checkered',beats:[
+      'The strip\'s empty at dawn — except one car at the line. Nitro Kane. "One run," Roxy whispers. "For the house they took."',
+      'You drive. She rides shotgun, calling gears, and on the last stretch she LAUGHS — the real one, the one nobody gets. You take him by half a length. Kane hands over the pink slip without a word.',
+      'She frames it in the garage. "Streaks pay two-and-a-half from tonight — my guys, my rules. And when you want the big one?" She grins. "You already know I\'m in."'],
+      fxNew:'Street race pay ×2.5'},
+  ],
+  yara:[
+    {name:'Still Water',beats:[
+      'She\'s on the dock, feet in the water, Kevin floating nearby. "You ask why the gators listen. Fine. My grandmother could do it. Her mother before. It isn\'t magic — it\'s PATIENCE, and the swamp pays its debts."',
+      '"In \'79 the county wanted to drain the east glades. Grandmother walked into the hearing with a gator on a rope of braided grass and said nothing at all. They voted it down just to make her leave."',
+      '"The water tells me things, and lately it says your name with money after it. The gators will run hotter for you — that\'s the swamp paying YOU."']},
+    {name:'What Kevin Knows',beats:[
+      'A lantern in the cypress dark. "You want to know about Kevin. Everyone does. Kevin is… the swamp\'s memory wearing scales. Grandmother fed him from her hand. When she passed, he came to ME."',
+      '"People I\'ve hidden from the law in the east glades: eleven. People the swamp has kept: eleven. That\'s not a coincidence, that\'s a CONTRACT. The swamp keeps what feeds it."',
+      '"It likes you. So: a warning. When the Task Force comes — and it WILL come — bring the heat to the water. The mist swallows tail lights. I\'ll show you where."']},
+    {name:'The Long Green',beats:[
+      'Deep glade, a shack you\'ve never seen, jars glowing faintly on the walls. "Grandmother\'s still. This is where I\'ve been teaching you to go. Down here, everything washes clean — money included."',
+      '"The banks in town wash maybe a trickle at a time. My washers move a RIVER. It\'s been running for sixty years, and tonight it runs for you. Seventy-five on top, always."',
+      'Kevin surfaces once, slow, like a bow. Yara smiles. "The swamp keeps what feeds it," she says. "Feed it well."'],
+      fxNew:'Gator race pay ×1.75'},
+  ],
+  destiny:[
+    {name:'Soundcheck',beats:[
+      'Empty theater, just her on the stage edge. "Baby, before I was Destiny Monroe I was Didi Munroe from Delray, singing weddings for $40 and cold shrimp."',
+      '"A producer heard me at sixteen. Said he\'d make me a star. What he made me was… a debt. Seven years I paid for my own name. Ever wonder why I lose myself on stage? It\'s the only hour that was ever MINE."',
+      '"Then you showed up. First person in years who claps for the SONG, not the show. Stick around, baby. The encore\'s for you."']},
+    {name:'The Encore',beats:[
+      'Recording studio, 2AM, her headphones around her neck. "That producer? He\'s in town. Wants to buy my catalog — my VOICE, baby — for a condo and an apology."',
+      '"I said no. He said I\'d regret it. And you know what? For one second, I DID. Old habits. Then I remembered: I\'m not sixteen and scared anymore. I\'m Destiny friggin\' Monroe."',
+      '"When the crowd carries me now, I stay UP longer. That\'s your doing. You want the frenzy to LAST, baby? Watch tonight\'s show — I\'m going long."']},
+    {name:'Wembley of the Swamp',beats:[
+      'She\'s got a stadium date — PALMETRO\'S first — and she\'s put your empire\'s name on the marquee as sponsor. "Nervous? Me? Baby, I was BORN for this. But sit front row, because this one\'s history."',
+      'Three hours she holds the whole city. When the final song ends, she doesn\'t leave the stage. "THEY KNOW MY NAME NOW," she says into the mic, "AND IT AIN\'T DIDI." The roar could pull the moon down.',
+      'Backstage after, still glowing: "The high lasts three minutes from tonight — same as the crowd\'s roar. You gave me the stage, baby. I\'m giving you the encore."'],
+      fxNew:'Frenzies last 3 min'},
+  ],
+  vivienne:[
+    {name:'The Ledger and the Sea',beats:[
+      'Aboard the yacht, engine off, drifting. "You\'ve wondered why I count everything. Fine. My father counted NOTHING. Trusts, yachts, thoroughbreds — all of it gone by the time I was nineteen. The Ashford name was all the liquidation left."',
+      '"I rebuilt it with a ledger and no friends. Every asset, every meal, every MINUTE. It\'s not coldness — it\'s cartography. I map value so the tide can\'t take it again."',
+      '"You spend your dirty money like tides: fast and loud. My washers can map yours the same way. Consider your offshore trickle… adjusted."']},
+    {name:'Signed in Salt',beats:[
+      'The estate\'s boathouse, a fire going. "The family that bought our debts at auction — I\'ve spent a decade buying their paper back. Last week the final note came home." She feeds one sheet to the fire.',
+      '"A lawyer asked why I didn\'t destroy them instead. Destroy? No. OWN. When their ships come in, half the harbor fee is MINE now. That\'s the difference between revenge and architecture."',
+      '"You\'re in the architecture now. Sleep on the yacht next time you\'re dark — the crew knows you. What\'s being built doesn\'t fall."']},
+    {name:'The Ashford Account',beats:[
+      'A private room at her bank — HER bank, plaque and all. "Do you know what a family office is? It\'s what I\'ve spent ten years pretending I didn\'t want to build. Here it is anyway."',
+      '"Your capital moves through it now. When you\'re away, my floor trades against the tide your rackets make — the office doubles your offshore yield as of tonight."',
+      'She signs one card and slides it over: ASHFORD & PARTNER. "Partner," she repeats, and for a half-second the arch look becomes a real smile. "Don\'t make me regret the ampersand."'],
+      fxNew:'Offline earnings ×2'},
+  ],
+};
+const QARC_STEPS=[1,3,6]; // nights-out counts that unlock chapters 1/2/3
+function qarcArt(qid,ch){ // chapter art = her approved candids (identity-safe, no new assets)
+  const ph=MSG_PHOTOS[qid]||[];
+  return ph[Math.min(ch,ph.length-1)]||'art/queens/'+qid+'.jpg';
+}
+function qperked(qid){ return has(qid)&&!!S.qperk[qid]; }
+function checkQueenArcs(){ // one chapter at a time, tick-driven; fires a story card when a step is crossed
+  for(const q of QUEENS){
+    const prog=S.qarc[q.id]||0;
+    if(prog>=3||!S.queens[q.id])continue;
+    const nights=S.nights[q.id]||0;
+    if(nights>=QARC_STEPS[prog]&&now()>S.arcCd){
+      S.arcCd=now()+30000; // don't stack with other story modals
+      playQueenArc(q,prog);
+      return;
+    }
+  }
+}
+function playQueenArc(q,prog){
+  const arc=QUEEN_ARCS[q.id][prog];
+  const last=prog===2;
+  playStoryCard({
+    title:`${q.name.toUpperCase()} · ${arc.name.toUpperCase()}`,
+    art:qarcArt(q.id,prog), beats:arc.beats,
+    finalLabel:last?'CLAIM HER TRUST':'ANOTHER NIGHT',
+    onFinal:()=>{
+      S.qarc[q.id]=prog+1;
+      if(last){
+        S.qperk[q.id]=true;
+        toast(q.name.toUpperCase()+' — PERK UPGRADED: '+arc.fxNew.toUpperCase());
+        window.Radio&&Radio.sfx.fanfare();
+      }
+      updateBadges(); save(); renderQueensApp();
+    },
+  });
 }
 
 const MILESTONES=[
@@ -280,6 +419,7 @@ function defaultState(){
     vault:{}, lieuts:{}, lastSal:0, era:1,
     radio:{st:0,muted:true}, stills:false, acts:{races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0,sstreak:0,hcd:0,hruns:0,hbest:0},
     queens:{}, inspiredUntil:0, nightCd:0, mile:{}, ev:null, daily:null, weather:null, stapes:{},
+    nights:{}, qarc:{}, qperk:{}, arcCd:0, tfGrace:0, tfOfferCd:0, hist:[], histMs:60000,
     garage:{}, garageSel:'stock',
     msgs:[], unreadMsgs:0, msgBuff:null, deploy:{},
     heistReadyAt:0, frenzy:0, ts:Date.now(),
@@ -390,7 +530,7 @@ function decayRate(){
   return d;
 }
 function costOf(r,k){ const cur=rs(r.id).n,b=r.cost*Math.pow(1.15,cur); return b*(Math.pow(1.15,k)-1)/.15; }
-function bribeCost(){ return Math.max(400,totalIncome()*45)*(has('solana')?.5:1); }
+function bribeCost(){ return Math.max(400,totalIncome()*45)*(qperked('solana')?.35:has('solana')?.5:1); }
 function maxAfford(r,money){ const cur=rs(r.id).n,b=r.cost*Math.pow(1.15,cur); return Math.max(0,Math.floor(Math.log(money*.15/b+1)/Math.log(1.15))); }
 function respectGain(){ return Math.max(0,Math.floor(Math.sqrt(S.stats.clean/1e4))-S.respectGranted); }
 
@@ -415,6 +555,8 @@ function load(){
     S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0,sstreak:0,hcd:0,hruns:0,hbest:0},d.acts);
     S.garage=d.garage||{};
     S.stapes=d.stapes||{};
+    S.nights=d.nights||{}; S.qarc=d.qarc||{}; S.qperk=d.qperk||{};
+    S.hist=Array.isArray(d.hist)?d.hist:[];
     S.garageSel=(d.garageSel==='stock'||(d.garage&&d.garage[d.garageSel]))?d.garageSel:'stock';
     S.queens=d.queens||{};
     S.mile=d.mile||{};
@@ -423,7 +565,7 @@ function load(){
     S.msgBuff=d.msgBuff||null;
     S.deploy=d.deploy||{};
     // sanitize: heal saves poisoned by an old Infinity payout (JSON turns Infinity into null)
-    for(const k of ['dirty','clean','heat','respect','respectGranted','lastSal','heistReadyAt','frenzy','inspiredUntil','nightCd']){
+    for(const k of ['dirty','clean','heat','respect','respectGranted','lastSal','heistReadyAt','frenzy','inspiredUntil','nightCd','arcCd','tfGrace','tfOfferCd']){
       const v=S[k];
       if(typeof v!=='number'||!isFinite(v))S[k]=0;
     }
@@ -489,6 +631,94 @@ const WEATHERS={
 };
 function weatherActive(type){ return S.weather&&S.weather.until>now()&&S.weather.type===type; }
 const weatherTake=()=>weatherActive('rain')?.9:1; // rain-soaked scores pay less — previews mirror it
+
+/* ---------------- TASK FORCE ESCAPE · one shot to shake the tax ---------------- */
+let tfR=null, tfTO=0;
+function offerTFEscape(){
+  if(now()<S.tfOfferCd){ toast('TASK FORCE! INCOME −25% UNTIL HEAT < 50'); return; }
+  S.tfOfferCd=now()+300000; // offer at most once per 5 minutes
+  modal('TASK FORCE ON YOU',
+    `<p>The unmarked cars boxed the block while you were counting. Blue suits on every corner, and your income about to feel it.</p>
+     <p class="led-line">INCOME −25% UNTIL HEAT DROPS BELOW 50</p>
+     <p>Or… there's the alley behind the laundromat. Yara says the mist swallows tail lights. <b>12 seconds, two crashes and they cuff you.</b></p>`,
+    [{label:'RUN THE ALLEY',cls:'btn-primary',fn:()=>{ closeModal(); startTFEscape(); }},
+     {label:'TAKE THE HIT',cls:'btn-ghost',fn:()=>{ closeModal(); toast('TASK FORCE! INCOME −25% UNTIL HEAT < 50'); }}]);
+}
+function startTFEscape(){
+  tfR={lane:'top',miss:0,obs:[],nextSpawn:0,scroll:0,t0:now(),dur:12000,over:false,ended:false};
+  modal('THE ALLEY — SHAKE THEM',
+    `<div id="hw-stage" class="tf-stage">
+      <div class="road"><div class="hw-dashes" id="tf-dashes"></div></div>
+      <img id="tf-police" class="hw-car" alt="" style="top:58%;left:6%">
+      <img id="tf-you" class="hw-car" alt="" style="top:26%;left:14%">
+    </div>
+    <div id="hw-stats">CRASHES <b class="red">0</b>/2 · SURVIVE 12s · TAP TOP/BOTTOM TO WEAVE</div>`,
+    []);
+  const stage=$id('hw-stage');
+  keyedCar(carArt(S.garageSel),u=>{const el=$id('tf-you');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
+  keyedCar('art/cars/police.jpg',u=>{const el=$id('tf-police');if(el)el.src=u||CAR_SIDE('#1c1132','#58f7ff');});
+  stage.onpointerdown=e=>{
+    if(!tfR||tfR.over)return;
+    const r=stage.getBoundingClientRect();
+    tfR.lane=(e.clientY-r.top)<r.height/2?'top':'bot';
+    $id('tf-you').style.top=tfR.lane==='top'?'26%':'60%';
+    window.Radio&&Radio.sfx.tick();
+  };
+  const key=e=>{ if(e.code==='Space'&&tfR&&!tfR.over){e.preventDefault();tfR.lane=tfR.lane==='top'?'bot':'top';$id('tf-you').style.top=tfR.lane==='top'?'26%':'60%';} };
+  window.addEventListener('keydown',key);
+  tfR.key=key;
+  window.Radio&&Radio.sfx.siren();
+  tfTO=setInterval(()=>tfTick(),50);
+}
+function tfTick(){
+  const r=tfR, stage=$id('hw-stage');
+  if(!r||r.over){ clearInterval(tfTO); window.removeEventListener('keydown',r?r.key:()=>{}); return; }
+  r.scroll+=2.6;
+  const dashes=$id('tf-dashes'); if(dashes)dashes.style.backgroundPosition=(-(r.scroll*3.4)%54)+'px 0';
+  if(now()>r.nextSpawn){
+    r.nextSpawn=now()+750+Math.random()*500;
+    const lane=Math.random()<.5?'top':'bot';
+    const el=document.createElement('div');
+    el.className='hw-ob'; el.innerHTML=BARRIER_SVG;
+    el.style.top=lane==='top'?'22%':'56%'; el.style.left='104%';
+    stage.appendChild(el);
+    r.obs.push({el,lane,x:104});
+  }
+  for(const ob of r.obs){
+    ob.x-=3.4;
+    ob.el.style.left=ob.x+'%';
+    if(ob.lane===r.lane&&ob.x<16&&ob.x>12){
+      r.miss++; ob.el.remove(); ob.x=-99;
+      stage.classList.remove('crashflash'); void stage.offsetWidth; stage.classList.add('crashflash');
+      window.Radio&&Radio.sfx.bust();
+      $id('hw-stats').innerHTML=`CRASHES <b class="red">${r.miss}</b>/2 · SURVIVE 12s · TAP TOP/BOTTOM TO WEAVE`;
+      if(r.miss>=2){ endTFEscape(false); return; }
+    }
+  }
+  r.obs=r.obs.filter(o=>o.x>-10&&o.x!==-99);
+  const pol=$id('tf-police'); if(pol)pol.style.left=(6+Math.min(9,((now()-r.t0)/r.dur)*9))+'%';
+  if(now()-r.t0>r.dur)endTFEscape(true);
+}
+function endTFEscape(win){
+  const r=tfR; if(!r||r.ended)return;
+  r.ended=true; r.over=true;
+  clearInterval(tfTO); window.removeEventListener('keydown',r.key);
+  if(win){
+    S.tf=false; S.heat=Math.max(0,S.heat-35); S.tfGrace=now()+120000;
+    window.Radio&&Radio.sfx.fanfare();
+    modal('SHOOK THEM',
+      `<p>You walk out of the mist three blocks up, breathing like a swimmer. Behind you, the unmarked cars circle an empty alley.</p>
+       <p class="led-line">NO TASK FORCE · HEAT −35 · 2 MINUTES OF CLEAN AIR GUARANTEED</p>`,
+      [{label:'BACK TO WORK',cls:'btn-primary',fn:()=>{ closeModal(); updateHUD(now()); }}]);
+  }else{
+    window.Radio&&Radio.sfx.siren();
+    modal('CUFFED ON THE HOOD',
+      `<p>They sat you on the hood long enough for the whole block to watch. No charges — just a message.</p>
+       <p class="led-line">TASK FORCE HOLDS — INCOME −25% UNTIL HEAT < 50</p>`,
+      [{label:'EAT IT',cls:'btn-primary',fn:closeModal}]);
+  }
+  tfR=null; save();
+}
 function maybeWeather(){
   if(S.weather&&S.weather.until>now())return;
   const r=Math.random(); // clear 45% / rain 25% / storm 10% / heat 20%
@@ -972,7 +1202,7 @@ function startHeist(h){
   const d=districtOf(h.d);
   const poster=eraImg(d);
   const base=Math.max(300,totalIncome()*90);
-  const take=base*RISK_MULT[h.risk]*(has('camille')?1.25:1)*weatherTake();
+  const take=base*RISK_MULT[h.risk]*(qperked('camille')?1.4:has('camille')?1.25:1)*weatherTake();
   $id('heist-kicker').textContent=KIND_TXT[h.kind];
   $id('heist-name').textContent=h.name;
   $id('heist-play').innerHTML=`
@@ -1266,7 +1496,7 @@ function endHeist(){
   else if(d.h.kind==='boost')perf=d.miss===0?1:d.miss===1?.6:.3;
   else perf=d.hits>=3?1:d.hits===2?.6:d.hits===1?.35:0;
   const base=Math.max(300,totalIncome()*90);
-  const pay=busted?0:base*RISK_MULT[d.h.risk]*perf*(has('camille')?1.25:1)*(msgBuffActive('camille')?1.1:1)*weatherTake();
+  const pay=busted?0:base*RISK_MULT[d.h.risk]*perf*(qperked('camille')?1.4:has('camille')?1.25:1)*(msgBuffActive('camille')?1.1:1)*weatherTake();
   // theater: gold or red wash
   const wash=document.createElement('div');
   wash.className=busted?'redwash':'goldwash';
@@ -1279,7 +1509,7 @@ function endHeist(){
     S.dirty+=pay; S.stats.dirty+=pay; payToast(pay);
     msg=`TAKE: <span class="gold">${$$(pay)}</span> DIRTY`;
     const strong=d.h.kind==='con'?d.hits>=3:d.h.kind==='boost'?d.miss===0:d.hits>=d.rounds;
-    if(strong){S.frenzy=now()+(has('destiny')?120000:60000);msg+=`<br><span class="teal">FRENZY ×2 — ${has('destiny')?'120':'60'}s!</span>`;}
+    if(strong){const fms=qperked('destiny')?180000:has('destiny')?120000:60000;S.frenzy=now()+fms;msg+=`<br><span class="teal">FRENZY ×2 — ${fms/1000}s!</span>`;}
     if(perf>=1)msg+='<br><span class="teal">CLEAN GETAWAY.</span>';
     if(d.h.kind==='con'&&d.hits===0){S.heat=clamp(S.heat+10,0,100);msg+='<br>+10 HEAT · they saw your face.';}
   }
@@ -1567,7 +1797,7 @@ function openStreetRace(){
        <img id="you-sv" class="sv-car" alt="">
      </div>
      <div id="race-led">0 MPH</div><div id="race-prompt">WATCH THE TREE…</div>
-     <p class="led-line" style="text-align:center">STAKE ${$$(stake)} · WIN ${$$(stake*2*(has('roxy')?2:1))}</p>`,
+     <p class="led-line" style="text-align:center">STAKE ${$$(stake)} · WIN ${$$(stake*2*(qperked('roxy')?2.5:has('roxy')?2:1))}</p>`,
     [{label:'BAIL',cls:'btn-ghost',fn:()=>{dragR=null;cancelAnimationFrame(dragRAF);closeModal();}}]);
   // painted sprites, chroma-keyed off the green screen; drawn SVG fallback
   keyedCar(carArt(S.garageSel),u=>{const el=$id('you-sv');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
@@ -1653,7 +1883,7 @@ function shiftDrag(){
 }
 function endDrag(){
   const r=dragR;r.over=true;r.cleanup&&r.cleanup();
-  const win=r.mph>=100, pay=r.stake*2*(has('roxy')?2:1)*(msgBuffActive('roxy')?1.1:1);
+  const win=r.mph>=100, pay=r.stake*2*(qperked('roxy')?2.5:has('roxy')?2:1)*(msgBuffActive('roxy')?1.1:1);
   if(win){
     S.acts.swins++;S.acts.sstreak=(S.acts.sstreak||0)+1;S.dirty+=pay;payToast(pay);
     if(r.perfects>=5)garageUnlock('ghostgt');   // a flawless run — every shift perfect
@@ -1748,7 +1978,7 @@ function runSwamp(pick,stake){
     if(done>=0){
       clearInterval(swampTO);
       const g=GATORS[done], won=pick===done;
-      const pay=won?stake*g.odds*(has('yara')?1.5:1):0;
+      const pay=won?stake*g.odds*(qperked('yara')?1.75:has('yara')?1.5:1):0;
       if(won){S.dirty+=pay;S.acts.gwins++;payToast(pay);}
       window.Radio&&(won?Radio.sfx.fanfare():Radio.sfx.bust());
       setTimeout(()=>modal('GATOR RACES · RESULT', won
@@ -2256,6 +2486,7 @@ function showApp(name){
   else if(name==='deploy')renderDeployApp();
   else if(name==='casino')renderCasinoApp();
   else if(name==='garage')renderGarageApp();
+  else if(name==='stats')renderStatsApp();
   else if(name==='settings')renderSettingsApp();
 }
 function openPhone(app){
@@ -2315,7 +2546,7 @@ function renderQueensApp(){
         ${mine?'<span class="q-withyou">WITH YOU</span>':`<span class="q-lock">${SVGS.lock}</span>`}</div>
       <div class="q-plate"><div class="q-name">${mine?q.name:'???'}</div>
         <div class="q-title">${q.title.toUpperCase()}</div>
-        ${mine?`<span class="q-perk">${q.fx}</span>`:`<span class="q-hint">${q.hint}</span>`}</div>
+        ${mine?`<span class="q-perk">${qperked(q.id)?QUEEN_ARCS[q.id][2].fxNew:q.fx}${S.qarc[q.id]===3?' ✓':''}</span>`:`<span class="q-hint">${q.hint}</span>`}</div>
     </div>`;
   }
   html+='</div>';
@@ -2343,6 +2574,7 @@ function renderQueensApp(){
        if(picked){ // one roll picks the girl — the toast line and the PULSE text are always hers
          toast(NIGHT_LINES[QUEENS.indexOf(picked)]);
          msgFrom(picked.id,'nightOut');
+         S.nights[picked.id]=(S.nights[picked.id]||0)+1; // her story arc counts these
        }
        window.Radio&&Radio.sfx.fanfare();
     renderQueensApp();
@@ -2579,6 +2811,48 @@ function renderGarageApp(){
       window.Radio&&Radio.sfx.tick();
     };
   });
+}
+/* ---- THE BOOKS · stats museum ---- */
+function sampleHist(){ // 1-minute sampler; decimates to stay bounded
+  const t=now();
+  if(S.hist.length && t-S.hist[S.hist.length-1][0] < S.histMs) return;
+  S.hist.push([t, Math.round(totalIncome()), Math.round(S.dirty), Math.round(S.clean)]);
+  if(S.hist.length>720){
+    S.hist=S.hist.filter((_,i)=>i%2===0||i===S.hist.length-1); // drop every 2nd old point
+    S.histMs=Math.min(240000,S.histMs*2);                       // and halve the sample rate
+  }
+}
+function renderStatsApp(){
+  $id('stats-sub').textContent=S.hist.length>=2?'LIFETIME · '+fmt((S.hist[S.hist.length-1][0]-S.hist[0][0])/60000)+' MIN CHARTED':'THE LEDGER LIVES';
+  const big=[['LIFETIME DIRTY',$$(S.stats.dirty)],['LIFETIME CLEAN',$$(S.stats.clean)],
+    ['INCOME NOW',$$(totalIncome())+'/s'],['LAUNDERING',$$(totalWash())+'/s'],
+    ['RAIDS SURVIVED',S.stats.raids],['HEISTS CLEARED',S.stats.heists],
+    ['RACES RUN',S.acts.races],['BLACKJACK HANDS',S.acts.bj]];
+  const rec=[['BEST HIGHWAY KM',(S.acts.hbest||0).toFixed(1)],['BEST WIN STREAK',S.acts.sstreak||0],
+    ['ERA REACHED',['1986','PRESENT DAY','2049'][Math.min(2,(S.era||1)-1)]],
+    ['RIDES',CARS.filter(c=>c.own||S.garage[c.id]).length+'/'+CARS.length],
+    ['TAPES HEARD',Object.keys(S.stapes).length+'/'+STORY.length],
+    ['NIGHTS OUT',Object.values(S.nights).reduce((a,b)=>a+b,0)]];
+  // income sparkline: log-scaled polyline so early game stays visible next to endgame
+  let spark='<div class="spark-wrap"><svg viewBox="0 0 300 90" preserveAspectRatio="none">';
+  if(S.hist.length>=2){
+    const pts=S.hist.map(h=>h[1]).filter(v=>v>0);
+    const lo=Math.max(1,Math.min(...pts)), hi=Math.max(...pts,lo*10);
+    const W=300,H=90;
+    const path=S.hist.map((h,i)=>{
+      const x=(i/(S.hist.length-1))*W;
+      const v=Math.max(1,h[1]);
+      const y=H-8-((Math.log(v)-Math.log(lo))/(Math.log(hi)-Math.log(lo)))*(H-16);
+      return `${x.toFixed(1)},${Math.max(2,Math.min(H-2,y)).toFixed(1)}`;
+    }).join(' ');
+    spark+=`<polyline points="${path}" fill="none" stroke="var(--teal)" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+  }else spark+='<text x="150" y="50" text-anchor="middle" fill="#8d7fae" font-size="11" font-family="VT323,monospace">charting begins after a minute…</text>';
+  spark+='</svg><div class="spark-lbl">INCOME / SEC — LOG SCALE</div></div>';
+  $id('stats-body').innerHTML=`
+    ${spark}
+    <div class="st-grid">${big.map(s=>`<div class="st-cell"><div class="st-k">${s[0]}</div><div class="st-v">${s[1]}</div></div>`).join('')}</div>
+    <div class="g-led" style="margin-top:12px">RECORDS</div>
+    <div class="st-grid">${rec.map(s=>`<div class="st-cell"><div class="st-k">${s[0]}</div><div class="st-v">${s[1]}</div></div>`).join('')}</div>`;
 }
 function refreshGarageIfOpen(){
   const scr=$id('scr-garage');
@@ -2844,7 +3118,7 @@ function introModal(){
 function offlineCheck(){
   const dt=clamp((now()-S.ts)/1000,0,OFFLINE_CAP_S);
   if(dt<OFFLINE_MIN_S)return;
-  const offMult=has('vivienne')?1.5:1;
+  const offMult=qperked('vivienne')?2:has('vivienne')?1.5:1;
   const inc=totalIncome()*dt*offMult, wash=Math.min(totalWash()*dt,S.dirty+inc);
   S.dirty+=inc-wash; S.clean+=wash; S.stats.dirty+=inc; S.stats.clean+=wash;
   modal('WHILE YOU WERE GONE',
@@ -2866,8 +3140,9 @@ function sim(dt,t){
   if(conv>0){ S.dirty-=conv; S.clean+=conv; S.stats.clean+=conv; dailyBump('wash',conv); }
   const net=totalHeat()-decayRate();
   S.heat=clamp(S.heat+net*dt,0,100);
-  if(S.heat>=100&&!S.tf){ S.tf=true; toast('TASK FORCE! INCOME −25% UNTIL HEAT < 50');
-    msgFrom(Math.random()<.5?'sal':'ghost','taskForce'); }
+  if(S.heat>=100&&!S.tf&&now()>S.tfGrace){ S.tf=true;
+    msgFrom(Math.random()<.5?'sal':'ghost','taskForce');
+    offerTFEscape(); }
   if(S.tf&&S.heat<50){ S.tf=false; toast('THE TASK FORCE BACKED OFF'); }
   raidLogic(dt,t);
 }
@@ -2879,8 +3154,8 @@ setInterval(()=>{
     if(!isPaused())sim(dt,t);
     // state checks are pure + idempotent: they run even while the phone pauses the sim,
     // so "joined the crew" moments don't wait for you to close the menu
-    checkLieuts(); checkQueens(); checkMilestones(); checkGarage(); checkChapters();
-    maybeEvent(); maybeWeather(); dailyCheck(); updateEventBanner();
+    checkLieuts(); checkQueens(); checkMilestones(); checkGarage(); checkChapters(); checkQueenArcs();
+    maybeEvent(); maybeWeather(); dailyCheck(); updateEventBanner(); sampleHist();
     updateCards(t); updateHUD(t); updateLedger(); updateHeistBtn(t); updateBadges();
   }
 },TICK_MS);
