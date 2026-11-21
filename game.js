@@ -216,7 +216,7 @@ function playStoryCard({title, art, beats, kicker='ON AIR…', finalLabel='CONTI
       [{label:last?finalLabel:'CONTINUE',cls:'btn-primary',fn:()=>{
         if(!last){ i++; show(); return; }
         closeModal(); onFinal&&onFinal();
-      }}]);
+      }}],true);
   };
   show();
 }
@@ -2595,7 +2595,7 @@ function renderQueensApp(){
           `<div class="story-art face tall"><img src="${q.pic}" alt="" style="filter:grayscale(1) brightness(.4)"></div>
            <p class="led-line onair">NOT IN YOUR LIFE YET</p>
            <p class="story-beat">Win her over first: <b>${q.hint}</b>.</p>`,
-          [{label:'SOMEDAY',cls:'btn-primary',fn:closeModal}]);
+          [{label:'SOMEDAY',cls:'btn-primary',fn:closeModal}],true);
         return;
       }
       const nights=S.nights[q.id]||0, arc=S.qarc[q.id]||0;
@@ -2627,7 +2627,7 @@ function renderQueensApp(){
                 finalLabel:'BACK TO HER',onFinal:()=>renderQueensApp()});
             }},
             {label:'CLOSE',cls:'btn-ghost',fn:closeModal}]
-          :[{label:'CLOSE',cls:'btn-primary',fn:closeModal}]);
+          :[{label:'CLOSE',cls:'btn-primary',fn:closeModal}],true);
     };
   });
 }
@@ -3129,7 +3129,7 @@ function wirePhoneRadio(){
 }
 
 /* ---------------- MODAL ---------------- */
-function modal(title,bodyHTML,buttons){
+function modal(title,bodyHTML,buttons,dismiss){
   $id('modal-title').textContent=title;
   $id('modal-body').innerHTML=bodyHTML;
   const bx=$id('modal-buttons'); bx.innerHTML='';
@@ -3139,9 +3139,11 @@ function modal(title,bodyHTML,buttons){
     el.onclick=()=>{ if(!b.keep)closeModal(); if(b.fn)b.fn(); };
     bx.appendChild(el);
   }
+  $id('modal').dataset.dismiss=dismiss?'1':''; // backdrop-click closes only when allowed
   $id('modal').hidden=false;
 }
 function closeModal(){ $id('modal').hidden=true; }
+$id('modal').addEventListener('click',e=>{ if(e.target.id==='modal'&&$id('modal').dataset.dismiss)closeModal(); });
 
 function settingsModal(){} // (settings now live in the Vice Phone)
 
