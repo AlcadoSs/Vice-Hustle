@@ -131,6 +131,11 @@ const CARS=[
   {id:'buggy',  name:'Swamp Buggy',      art:'art/cars/g-buggy.jpg',  how:'win 5 gator races',       test:s=>s.acts.gwins>=5, who:'yara'},
   {id:'gt2k',   name:'Millennium GT',    art:'art/cars/g-gt2k.jpg',   how:'enter Era II — Present Day', test:s=>s.era>=2, who:'kmr'},
   {id:'vector', name:'2049 Vector',      art:'art/cars/g-vector.jpg', how:'enter Era III — 2049',    test:s=>s.era>=3, who:'kmr'},
+  {id:'roller', name:'The High Roller',  art:'art/cars/g-roller.jpg', how:'win 15 blackjack hands',  test:s=>s.acts.bjwins>=15, who:'camille'},
+  {id:'impound',name:'Impound Escapee',  art:'art/cars/g-impound.jpg',how:'survive 10 raids',        test:s=>s.stats.raids>=10, who:'ghost'},
+  {id:'scorevan',name:'The Scoremachine',art:'art/cars/g-scorevan.jpg',how:'first-clear 6 different heists', test:s=>Object.keys(s.vault).length>=6, who:'ray'},
+  {id:'surfer', name:'Solana\'s Sunset Jeep',art:'art/cars/g-surfer.jpg',how:'win Solana to your crew', test:s=>!!s.queens.solana, who:'solana'},
+  {id:'limo',   name:'Camille\'s Champagne Limo',art:'art/cars/g-limo.jpg',how:'win Camille to your crew', test:s=>!!s.queens.camille, who:'camille'},
 ];
 function carArt(id){ const c=CARS.find(x=>x.id===id); return c?c.art:'art/cars/player.jpg'; }
 function garageUnlock(id){
@@ -1681,10 +1686,12 @@ const MSG_POOLS={
   },
   carUnlock:{
     roxy:['New rubber in your garage — I could HEAR it from the strip. When do we run it? 🏁','Okay, that ride is CLEAN. Be honest: how fast are we going tonight? 🔥','Cars like that don\'t park themselves in your garage by accident. Respect. 🏁','I already told the strip about your new ride. Nobody argued. 🏁'],
-    ray:['Good metal. The causeway at 3AM does the rest. 🚬','Heard the engine from three blocks away. Beautiful noise.','That car and I are going to get along. Fill the tank.'],
-    ghost:['Black on black. The city won\'t see it coming. It rarely does.','You found the midnight one. It was always going to be you.','Some cars are escapes. This one is a disappearance.'],
+    ray:['Good metal. The causeway at 3AM does the rest. 🚬','Heard the engine from three blocks away. Beautiful noise.','That car and I are going to get along. Fill the tank.','A van that\'s carried out six clean scores? That\'s not a vehicle. That\'s a partner.'],
+    ghost:['Black on black. The city won\'t see it coming. It rarely does.','You found the midnight one. It was always going to be you.','Some cars are escapes. This one is a disappearance.','Ten impound lots. One beater. It remembers every one of them. So should you.'],
     yara:['The swamp gives its buggies only to those who respect the mud. Kevin approves. 🐊','That machine breathes wetland air. Bring it to the glades on Sunday. It misses home.'],
     vivienne:['Chrome. Finally, a vehicle that matches the cutlery. 🛥️','I approve of the new acquisition. My valet does not — it outshines the sedan.','Polished, I hope? I\'ll inspect it personally. Bring gloves.'],
+    solana:['A sunset jeep and a full tank — that\'s all anyone really needs. Take me up the coast road? 🌴','It suits you. Top off, doors off, radio up. I\'ll bring the towels. 🏄'],
+    camille:['A car for winners, darling. I\'d know — I introduced you to the table. 🥂','The house kept the chips. You kept the coupe. I\'d call that the better half.','My limo has a champagne button. I\'m teaching it to your garage next. 🥂'],
     kmr:['NEW METAL in somebody\'s garage tonight — Palmetro heard that engine purr from here. 📻','The strip\'s got a new look and it RIDES. Show it off, you earned it. 📻','Fresh paint on the scene — this is DJ KRM, saluting the garage. 📻'],
   },
   nightOut:{
