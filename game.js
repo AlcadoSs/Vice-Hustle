@@ -2592,7 +2592,7 @@ function renderQueensApp(){
       window.Radio&&Radio.sfx.tick();
       if(!S.queens[q.id]){
         modal(q.name.toUpperCase()+' — ???',
-          `<div class="story-art face"><img src="${q.pic}" alt="" style="filter:grayscale(1) brightness(.4)"></div>
+          `<div class="story-art face tall"><img src="${q.pic}" alt="" style="filter:grayscale(1) brightness(.4)"></div>
            <p class="led-line onair">NOT IN YOUR LIFE YET</p>
            <p class="story-beat">Win her over first: <b>${q.hint}</b>.</p>`,
           [{label:'SOMEDAY',cls:'btn-primary',fn:closeModal}]);
@@ -2610,7 +2610,7 @@ function renderQueensApp(){
         </div>`;
       }).join('');
       modal(q.name.toUpperCase(),
-        `<div class="story-art face"><img src="${q.pic}" alt=""></div>
+        `<div class="story-art face tall"><img src="${q.pic}" alt=""></div>
          <p class="led-line onair">${q.title.toUpperCase()}</p>
          <div class="qd-stats">
            <span>NIGHTS OUT <b>${nights}</b></span>
@@ -2619,14 +2619,15 @@ function renderQueensApp(){
          </div>
          <div class="qd-list">${chapters}</div>
          <p class="story-beat" style="text-align:center">${next}</p>`,
-        [{label:arc>0&&arc<3?'REPLAY WHAT YOU KNOW':'CLOSE',cls:'btn-primary',fn:()=>{
-          closeModal();
-          if(arc>0&&arc<3){ // replay the last completed chapter, no reward
-            playStoryCard({title:q.name.toUpperCase()+' · '+QUEEN_ARCS[q.id][arc-1].name.toUpperCase(),
-              art:qarcArt(q.id,arc-1),beats:QUEEN_ARCS[q.id][arc-1].beats,face:true,
-              finalLabel:'BACK TO HER',onFinal:()=>renderQueensApp()});
-          }
-        }}]);
+        arc>0&&arc<3
+          ?[{label:'REPLAY',cls:'btn-primary',fn:()=>{
+              closeModal(); // re-read the last completed chapter, no reward
+              playStoryCard({title:q.name.toUpperCase()+' · '+QUEEN_ARCS[q.id][arc-1].name.toUpperCase(),
+                art:qarcArt(q.id,arc-1),beats:QUEEN_ARCS[q.id][arc-1].beats,face:true,
+                finalLabel:'BACK TO HER',onFinal:()=>renderQueensApp()});
+            }},
+            {label:'CLOSE',cls:'btn-ghost',fn:closeModal}]
+          :[{label:'CLOSE',cls:'btn-primary',fn:closeModal}]);
     };
   });
 }
