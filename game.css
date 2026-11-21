@@ -774,6 +774,26 @@ body.phone-open #phone{transform:none;visibility:visible;transition:transform .2
 #chase-stats{font-family:var(--led);font-size:18px;text-align:center;margin:4px 0}
 #chase-stats b.red{color:#ff5d7a} #chase-stats b.teal{color:var(--teal)}
 
+/* ---------- HIGHWAY RUN ---------- */
+#hw-stage{position:relative;height:230px;border-radius:12px;overflow:hidden;margin:8px auto;max-width:520px;
+  border:1px solid rgba(88,247,255,.4);cursor:pointer;
+  background:linear-gradient(180deg,#160d33 0 30%,#241739 30% 36%,#14101c 36% 100%)}
+#hw-stage .skyline{position:absolute;inset:0 0 44% 0;opacity:.6;
+  background:repeating-linear-gradient(90deg,transparent 0 22px,rgba(88,247,255,.10) 22px 26px,transparent 26px 74px,rgba(255,46,136,.12) 74px 78px,transparent 78px 110px)}
+#hw-stage .palms{position:absolute;left:0;right:0;bottom:44%;height:26%;opacity:.7;
+  background:repeating-linear-gradient(90deg,transparent 0 30px,rgba(0,0,0,.5) 30px 33px,transparent 33px 110px)}
+#hw-stage .road{position:absolute;left:0;right:0;bottom:0;height:46%;background:linear-gradient(180deg,#231b3f,#14101c)}
+#hw-stage .hw-dashes{position:absolute;left:0;right:0;top:49%;height:3px;
+  background:repeating-linear-gradient(90deg,#ffd977 0 26px,transparent 26px 54px);opacity:.7}
+.hw-car{position:absolute;height:38px;left:14%;transform:translateX(-50%);z-index:3;transition:top .12s;
+  filter:drop-shadow(0 3px 4px rgba(0,0,0,.6))}
+.hw-ob{position:absolute;height:30px;z-index:2;transform:translateX(-50%)}
+.hw-ob svg{height:26px}
+.hw-obcar{height:30px;display:block}
+#hw-stage.crashflash{animation:crashred .35s}
+#hw-stats{font-family:var(--led);font-size:18px;text-align:center;margin:4px 0}
+#hw-stats b.red{color:#ff5d7a} #hw-stats b.teal{color:var(--teal)}
+
 /* ---------- HEIST v2 · CARD TABLE ---------- */
 #ct-table{display:flex;gap:12px;justify-content:center;margin:12px 0}
 .ct-card{position:relative;width:74px;height:104px;border-radius:10px;cursor:pointer;
@@ -829,6 +849,12 @@ body.phone-open #phone{transform:none;visibility:visible;transition:transform .2
   .g-card.sel:hover{border-color:var(--gold)}
 }
 #scr-garage [data-tip]::after{max-width:200px}
+
+/* ---------- KRM TAPES · chapter cards ---------- */
+.story-art{margin:-6px -6px 10px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,46,136,.5)}
+.story-art img{display:block;width:100%;aspect-ratio:21/9;object-fit:cover}
+.onair{color:var(--gold) !important;letter-spacing:.35em;font-size:15px !important;margin-bottom:6px}
+.story-beat{font-size:15.5px;line-height:1.6;color:#e2d7ff;font-style:italic}
 
 /* ---------- CASINO · BLACKJACK ---------- */
 #bj-table{padding:2px 0}

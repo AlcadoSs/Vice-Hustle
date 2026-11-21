@@ -136,6 +136,7 @@ const CARS=[
   {id:'buggy',  name:'Swamp Buggy',      art:'art/cars/g-buggy.jpg',  how:'win 5 gator races',       test:s=>s.acts.gwins>=5, who:'yara'},
   {id:'roller', name:'The High Roller',  art:'art/cars/g-roller.jpg', how:'win 15 blackjack hands',  test:s=>s.acts.bjwins>=15, who:'camille'},
   {id:'scorevan',name:'The Scoremachine',art:'art/cars/g-scorevan.jpg',how:'first-clear 6 different heists', test:s=>Object.keys(s.vault).length>=6, who:'ray'},
+  {id:'krmvan', name:'The Broadcast Van', art:'art/cars/g-krmvan.jpg', how:'finish The KRM Tapes (all 5 chapters)'},
   {id:'impound',name:'Impound Escapee',  art:'art/cars/g-impound.jpg',how:'survive 10 raids',        test:s=>s.stats.raids>=10, who:'ghost'},
   {id:'surfer', name:'Solana\'s Sunset Jeep',art:'art/cars/g-surfer.jpg',how:'win Solana to your crew', test:s=>!!s.queens.solana, who:'solana'},
   {id:'limo',   name:'Camille\'s Champagne Limo',art:'art/cars/g-limo.jpg',how:'win Camille to your crew', test:s=>!!s.queens.camille, who:'camille'},
@@ -159,6 +160,72 @@ function checkGarage(){
     if(c.own||S.garage[c.id]||!c.test)continue;
     if(c.test(S))garageUnlock(c.id);
   }
+}
+
+/* ---------------- THE KRM TAPES · story chapters ---------------- */
+const STORY=[
+  {d:2, name:'Static in the Blood',    art:'art/story/ch1.jpg', rp:5,  beats:[
+    'Before the tower, before the call letters — there was a van on Neon Beach with a coat-hanger antenna and a dream.',
+    'Young KRM, headphones clamped on, broadcasting to maybe eleven people and one very confused lifeguard. The signal crackled. The city ignored him. He kept talking.',
+    'They say the first fan he ever had was a motel maid who left her radio on for company. She told two friends. They told two friends. That\'s how a legend starts — not with a tower, but with a maid.',
+  ]},
+  {d:3, name:'The Signal Deal',        art:'art/story/ch2.jpg', rp:10, beats:[
+    'Downtown, a stuttering station was dying on the AM dial. KRM walked in with a duffel of dirty cash and one condition: nobody tells the DJ what to play.',
+    'The lawyers laundered the language. The money got clean. The playlist got legendary. WPLM 103.5 went from static to skyline in one summer.',
+    'And every night at midnight, he\'d lean into that silver microphone and tell the city the one thing nobody else would: the truth, with a backbeat.',
+  ]},
+  {d:4, name:'Freight Frequencies',    art:'art/story/ch3.jpg', rp:15, beats:[
+    'Here\'s what the history books won\'t print: the station survived the hard years because the docks loved a good song.',
+    'A container here, a container there — the manifest said "broadcast equipment," and who was going to argue? The cranes moved to the rhythm. The crews moved to the beat.',
+    'KRM never touched the cargo. He just made sure the whole harbor could hear it coming. In Palmetro, even the freight rides on frequency.',
+  ]},
+  {d:5, name:'Mist Over the Glades',   art:'art/story/ch4.jpg', rp:20, beats:[
+    'The night the storm took the tower down, the city went silent — and the swamp answered.',
+    'An airboat, a car battery, a transmitter strapped to the bow. KRM broadcast from the black water while fireflies drifted past the mic, and somewhere out there, a lost driver followed the signal home.',
+    'They say a gator surfaced beside the boat and just... listened. Kevin, obviously. But that night, the whole glades were his audience.',
+  ]},
+  {d:6, name:'The City Listens',       art:'art/story/ch5.jpg', rp:25, beats:[
+    'Star Island came with a contract, a fountain pen, and a number with more zeroes than the dial. One signature and the voice of the city becomes the voice of a corporation.',
+    'KRM read that contract LIVE. On air. Every clause. Then he read his answer: "The city isn\'t for sale, and neither am I."',
+    'That night every window in Palmetro was lit — the whole skyline listening. He keys the mic, looks at the tower burning magenta and teal, and says the words that built this town: "Stay tuned." — THE END. FOR NOW.',
+  ]},
+];
+function unlockChapter(district){
+  const ch=STORY.find(s=>s.d===district);
+  if(!ch||S.stapes[district])return;
+  S.stapes[district]=true;
+  window.Radio&&Radio.sfx.blip(880);
+  msgFrom('kmr','chapter');
+  playChapter(ch, true);
+}
+function checkChapters(){ // idempotent — covers saves that unlocked mid-load
+  for(const ch of STORY){
+    if(S.unlocked>=ch.d&&!S.stapes[ch.d]){ unlockChapter(ch.d); return; } // one at a time — never stack modals
+  }
+}
+function playChapter(ch, fresh){
+  let i=0;
+  const reward=fresh?ch.rp:0;
+  const show=()=>{
+    const last=i>=ch.beats.length;
+    const rewardLine=last&&fresh
+      ?`<p class="led-line" style="color:var(--gold)">STORY REWARD — +${ch.rp} RESPECT${ch.d===6?' · THE BROADCAST VAN IS YOURS':''}</p>`:'';
+    modal(`THE KRM TAPES · CH.${STORY.indexOf(ch)+1} — ${ch.name}`,
+      `<div class="story-art"><img src="${ch.art}" alt=""></div>
+       <p class="led-line onair">ON AIR…</p>
+       <p class="story-beat">${last?'♪ '+ch.beats[ch.beats.length-1]:ch.beats[i]}</p>
+       ${rewardLine}`,
+      [{label:last?(fresh?'CLAIM THE TAPE':'REPLAY AGAIN'):'CONTINUE',cls:'btn-primary',fn:()=>{
+        if(!last){ i++; show(); return; }
+        closeModal();
+        if(fresh){
+          S.respect+=ch.rp;
+          if(ch.d===6)garageUnlock('krmvan');
+          updateBadges(); save(); refreshVaultIfOpen();
+        }
+      }}]);
+  };
+  show();
 }
 
 const MILESTONES=[
@@ -211,8 +278,8 @@ function defaultState(){
     unlocked:1, active:1, r:{}, up:{lawyer:0,scanner:0,washers:0},
     respect:0, respectGranted:0, spent:{empire:0,laundry:0,whisper:0,kick:0},
     vault:{}, lieuts:{}, lastSal:0, era:1,
-    radio:{st:0,muted:true}, stills:false, acts:{races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0,sstreak:0},
-    queens:{}, inspiredUntil:0, nightCd:0, mile:{}, ev:null, daily:null, weather:null,
+    radio:{st:0,muted:true}, stills:false, acts:{races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0,sstreak:0,hcd:0,hruns:0,hbest:0},
+    queens:{}, inspiredUntil:0, nightCd:0, mile:{}, ev:null, daily:null, weather:null, stapes:{},
     garage:{}, garageSel:'stock',
     msgs:[], unreadMsgs:0, msgBuff:null, deploy:{},
     heistReadyAt:0, frenzy:0, ts:Date.now(),
@@ -345,8 +412,9 @@ function load(){
     S.ev=d.ev&&d.ev.until>now()?d.ev:null; // expired events never survive a reload
     S.weather=d.weather&&d.weather.until>now()?d.weather:null;
     S.daily=d.daily&&d.daily.date?d.daily:null;
-    S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0,sstreak:0},d.acts);
+    S.acts=Object.assign({races:0,swins:0,gwins:0,scratch:0,bj:0,bjwins:0,scd:0,gcd:0,ccd:0,sstreak:0,hcd:0,hruns:0,hbest:0},d.acts);
     S.garage=d.garage||{};
+    S.stapes=d.stapes||{};
     S.garageSel=(d.garageSel==='stock'||(d.garage&&d.garage[d.garageSel]))?d.garageSel:'stock';
     S.queens=d.queens||{};
     S.mile=d.mile||{};
@@ -716,6 +784,7 @@ function confirmUnlock(d){
         S.clean-=d.unlock; S.unlocked=d.id; S.active=d.id; applyDistrict(); checkLieuts();
         msgFrom(Math.random()<.5?'kmr':'ray','districtUnlock');
         toast(d.name+' IS OPEN FOR BUSINESS');
+        setTimeout(()=>unlockChapter(d.id), 1400); // the tape unspools once the confetti settles
      }},
      {label:'NOT YET',cls:'btn-ghost',fn:closeModal}]);
 }
@@ -1266,6 +1335,104 @@ function keyedCar(src,cb){
   img.onerror=()=>{carSprites[src]=null;cb(null);};
   img.src=src;
 }
+/* ----- HIGHWAY RUN · endless traffic dodge ----- */
+const HW_CD=60000, HW_TRAFFIC=['rival','buggy','muscle','limo','roller','ghost','surfer'];
+function hwStake(){ return Math.max(500,Math.round(totalIncome()*60)); }
+let hwR=null, hwTO=0;
+function openHighwayRun(){
+  if(S.unlocked<4){toast('THE HIGHWAY OPENS WITH THE DOCKS');return;}
+  if(now()<S.acts.hcd){toast('THE RAMP NEEDS A BREATH — '+mmss((S.acts.hcd-now())/1000));return;}
+  const stake=hwStake();
+  if(S.dirty<stake){toast('NEED '+$$(stake)+' DIRTY TO ENTER');return;}
+  S.dirty-=stake; S.acts.hruns=(S.acts.hruns||0)+1; S.acts.hcd=now()+HW_CD;
+  hwR={stake,km:0,spd:30,lane:'top',miss:0,obs:[],nextSpawn:now()+800,scroll:0,over:false,ended:false};
+  modal('HIGHWAY RUN · RUSH HOUR',
+    `<div id="hw-stage">
+      <div class="skyline"></div><div class="palms"></div>
+      <div class="road"><div class="hw-dashes"></div></div>
+      <img id="hw-you" class="hw-car" alt="">
+    </div>
+    <div id="hw-stats">KM <b class="teal">0.0</b> · CRASHES <b class="red">0</b>/3 · TAP TOP/BOTTOM TO WEAVE</div>
+    <div id="ct-help">${$$(stake)} stake · payout grows with distance (max ×2.2) · your garage car runs the highway</div>`,
+    []);
+  const stage=$id('hw-stage');
+  keyedCar(carArt(S.garageSel),u=>{const el=$id('hw-you');if(el)el.src=u||CAR_SIDE('#2a6f68','#16e0bd');});
+  stage.onpointerdown=e=>{
+    if(!hwR||hwR.over)return;
+    const r=stage.getBoundingClientRect();
+    hwR.lane=(e.clientY-r.top)<r.height/2?'top':'bot';
+    $id('hw-you').style.top=hwR.lane==='top'?'26%':'60%';
+    window.Radio&&Radio.sfx.tick();
+  };
+  const key=e=>{ if(e.code==='Space'&&hwR&&!hwR.over){e.preventDefault();hwR.lane=hwR.lane==='top'?'bot':'top';$id('hw-you').style.top=hwR.lane==='top'?'26%':'60%';} };
+  window.addEventListener('keydown',key);
+  hwTO=setInterval(()=>hwTick(key),50);
+  save();
+}
+function hwTick(key){
+  const r=hwR, stage=$id('hw-stage');
+  if(!r||r.over){ clearInterval(hwTO); window.removeEventListener('keydown',key); return; }
+  r.spd=Math.min(95,r.spd*1.002+0.02);              // the highway keeps speeding up
+  r.km+=r.spd*0.05*0.022;                            // km accrue with speed
+  r.scroll+=r.spd*0.05;
+  const dashes=$id('hw-dashes'); if(dashes)dashes.style.backgroundPosition=(-(r.scroll*3.4)%54)+'px 0';
+  const palms=stage.querySelector('.palms'); if(palms)palms.style.backgroundPosition=(-(r.scroll*1.9)%110)+'px 0';
+  const sky=stage.querySelector('.skyline'); if(sky)sky.style.backgroundPosition=(-(r.scroll*.7)%110)+'px 0';
+  // spawn traffic — real cars off the garage art library, occasional barriers
+  if(now()>r.nextSpawn){
+    r.nextSpawn=now()+Math.max(420,1100-r.km*45)+Math.random()*380;
+    const lane=Math.random()<.5?'top':'bot';
+    const el=document.createElement('div');
+    el.className='hw-ob';
+    if(Math.random()<.18){ el.innerHTML=BARRIER_SVG; }
+    else{
+      const img=document.createElement('img');
+      img.className='hw-obcar';
+      const cid=HW_TRAFFIC[Math.floor(Math.random()*HW_TRAFFIC.length)];
+      const art=CARS.find(c=>c.id===cid).art;
+      img.src=art; img.style.transform='scaleX(-1)'; // facing left — oncoming
+      keyedCar(art,u=>{ if(u)img.src=u; });           // swap in the keyed transparent sprite when ready
+      el.appendChild(img);
+    }
+    el.style.top=lane==='top'?'22%':'56%'; el.style.left='104%';
+    stage.appendChild(el);
+    r.obs.push({el,lane,x:104});
+  }
+  // move traffic + crash check at player x≈14
+  for(const ob of r.obs){
+    ob.x-=(r.spd+18)*0.05;
+    ob.el.style.left=ob.x+'%';
+    if(ob.lane===r.lane&&ob.x<16&&ob.x>12){
+      r.miss++; ob.el.remove(); ob.x=-99;
+      stage.classList.remove('crashflash'); void stage.offsetWidth; stage.classList.add('crashflash');
+      window.Radio&&Radio.sfx.bust();
+      $id('hw-stats').innerHTML=`KM <b class="teal">${r.km.toFixed(1)}</b> · CRASHES <b class="red">${r.miss}</b>/3 · TAP TOP/BOTTOM TO WEAVE`;
+      if(r.miss>=3){ endHighway(key); return; }
+    }else if(ob.x<10&&!ob.passed){ ob.passed=true; }
+  }
+  r.obs=r.obs.filter(o=>o.x>-10&&o.x!==-99);
+  if($id('hw-stats'))$id('hw-stats').innerHTML=`KM <b class="teal">${r.km.toFixed(1)}</b> · CRASHES <b class="red">${r.miss}</b>/3 · TAP TOP/BOTTOM TO WEAVE`;
+}
+function endHighway(key){
+  const r=hwR; if(!r||r.ended)return;
+  r.ended=true; r.over=true;
+  clearInterval(hwTO); window.removeEventListener('keydown',key);
+  const mult=Math.min(2.2,0.6+r.km*0.06);
+  const pay=r.stake*mult;
+  const best=Math.max(S.acts.hbest||0,r.km);
+  S.acts.hbest=best;
+  const newBest=r.km>=best&&r.km>0;
+  S.dirty+=pay;
+  if(pay>r.stake)payToast(pay);
+  window.Radio&&Radio.sfx.fanfare();
+  modal('HIGHWAY RUN — TOTALED',
+    `<p>Wrecked at <b class="teal">${r.km.toFixed(1)} km</b>. The traffic won that round.</p>
+     <p class="led-line">PAYOUT ${$$(pay)} (×${mult.toFixed(2)})${newBest?' · NEW BEST!':''}</p>`,
+    [{label:'COLLECT',cls:'btn-primary',fn:()=>{ closeModal(); updateBadges(); refreshHustlesIfOpen(); }}]);
+  hwR=null;
+  save();
+}
+
 function openStreetRace(){
   if(now()<S.acts.scd){toast('THE STRIP NEEDS A BREATH — '+mmss((S.acts.scd-now())/1000));return;}
   const stake=actStake();
@@ -1695,6 +1862,9 @@ const MSG_POOLS={
   weather_heat:{
     kmr:['Heatwave, people — everybody\'s washing SOMETHING tonight. Laundering runs hot while it lasts. 📻','It\'s a million degrees and the money\'s melting out of mattresses. Get it clean. 📻'],
   },
+  chapter:{
+    kmr:['A tape for the archive tonight — the story of how this city got its voice. Press play in the Vault whenever you want to hear it again. 📻','Another chapter on the shelf. History, with a backbeat. This is DJ KRM. 📻'],
+  },
   districtUnlock:{
     kmr:['NEW TURF just opened up in Palmetro City and somebody\'s already moving in. This is DJ KRM, signing your lease. 📻','The map just got BIGGER. New money, new problems. You know the vibe. 📻','Another neighborhood just got a new landlord — and honey, the rent\'s about to be CRIMINAL. 📻','Maps being redrawn as I speak. Keep up. 📻'],
     ray:['New streets. New money. Same game. Let\'s ride.','Drove the new turf this morning. Good roads. Better opportunities.'],
@@ -2080,6 +2250,10 @@ function renderHustlesApp(){
      d:`Five gears. Nail the shift. ×2${has('roxy')?' · ROXY ×2':''}`,
      cd:S.acts.scd-now(),cdTxt:'60s between runs',
      stats:[['STAKE',$$(actStake())],['WINS',S.acts.swins],['RUNS',S.acts.races]]},
+    {id:'highway',art:'art/hustles/highway.jpg',ok:S.unlocked>=4,lock:'THE DOCKS',name:'HIGHWAY RUN',
+     d:'Endless traffic. 3 crashes. Up to ×2.2',
+     cd:S.acts.hcd-now(),cdTxt:'60s between runs',
+     stats:[['STAKE',$$(hwStake())],['BEST KM',(S.acts.hbest||0)],['RUNS',(S.acts.hruns||0)]]},
     {id:'gator',art:'art/hustles/gator.jpg',ok:S.unlocked>=5,lock:'SWAMP GLADES',name:'GATOR RACES',
      d:`Four gators, one swamp. ×1.8–×7${has('yara')?' · YARA ×1.5':''}`,
      cd:S.acts.gcd-now(),cdTxt:'60s between bets',
@@ -2109,13 +2283,14 @@ function renderHustlesApp(){
   $id('hustles-body').querySelectorAll('[data-go]').forEach(b=>{
     b.onclick=()=>{ window.Radio&&Radio.sfx.tick();
       if(b.dataset.go==='street')openStreetRace();
+      else if(b.dataset.go==='highway')openHighwayRun();
       else if(b.dataset.go==='gator')openGatorRace();
       else openScratch();
     };
   });
 }
 /* live cooldown ticker for hustle/casino pills (whichever screen is open) */
-const CD_FIELDS={street:'scd',gator:'gcd',casino:'ccd'};
+const CD_FIELDS={street:'scd',gator:'gcd',casino:'ccd',highway:'hcd'};
 function updateHustlesCd(){
   const scr=[...document.querySelectorAll('#phone .scr.on')].find(s=>s.querySelector('[data-cd]'));
   if(!scr)return;
@@ -2329,9 +2504,26 @@ function renderVaultApp(){
     }
   }
   html+='</div>';
+  // ---- STORY TAPES · the KRM chapters, replayable ----
+  const tapesDone=STORY.filter(s=>S.stapes[s.d]).length;
+  if(tapesDone>0){
+    html+=`<div class="v-led" style="margin-top:14px">THE KRM TAPES · <b>${tapesDone}/${STORY.length} CHAPTERS</b> · TAP TO REPLAY</div><div class="vt-grid">`;
+    for(let si=0;si<STORY.length;si++){
+      const ch=STORY[si];
+      const got=!!S.stapes[ch.d];
+      html+=got
+        ?`<div class="vt cleared story-vt" data-ch="${ch.d}">
+            <div class="vart" style="cursor:pointer"><img src="${ch.art}" alt=""><span class="vplay">${SVGS.play}</span></div>
+            <div class="vlabel"><div class="kind">CHAPTER ${si+1}</div><div class="tname">${ch.name}</div></div>
+          </div>`
+        :`<div class="vt locked"><div class="vart" style="cursor:default"></div>
+            <div class="vlabel"><div class="kind">CHAPTER ${si+1}</div><div class="tname">???</div></div></div>`;
+    }
+    html+='</div>';
+  }
   $id('vault-body').innerHTML=html;
   // inline, control-free playback — one tape at a time
-  $id('vault-body').querySelectorAll('.vt.cleared .vart').forEach(el=>{
+  $id('vault-body').querySelectorAll('.vt.cleared .vart[data-vid], .vt.cleared:not(.story-vt) .vart').forEach(el=>{
     el.onclick=()=>{
       if(el.classList.contains('live')){ stopVaultVideos(); return; }
       stopVaultVideos();
@@ -2343,6 +2535,14 @@ function renderVaultApp(){
       window.Radio&&Radio.sfx.tick();
     };
   });
+  // story tapes replay the radio-drama modal
+  $id('vault-body').querySelectorAll('.story-vt').forEach(el=>{
+    el.onclick=()=>{ stopVaultVideos(); playChapter(STORY.find(s=>s.d===+el.dataset.ch), false); };
+  });
+}
+function refreshVaultIfOpen(){
+  const scr=$id('scr-vault');
+  if(scr&&scr.classList.contains('on'))renderVaultApp();
 }
 function stopVaultVideos(){
   document.querySelectorAll('#vault-body video').forEach(v=>{v.pause();v.remove();});
@@ -2572,7 +2772,7 @@ setInterval(()=>{
     if(!isPaused())sim(dt,t);
     // state checks are pure + idempotent: they run even while the phone pauses the sim,
     // so "joined the crew" moments don't wait for you to close the menu
-    checkLieuts(); checkQueens(); checkMilestones(); checkGarage();
+    checkLieuts(); checkQueens(); checkMilestones(); checkGarage(); checkChapters();
     maybeEvent(); maybeWeather(); dailyCheck(); updateEventBanner();
     updateCards(t); updateHUD(t); updateLedger(); updateHeistBtn(t); updateBadges();
   }
