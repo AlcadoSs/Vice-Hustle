@@ -768,15 +768,21 @@ body.phone-open #phone{transform:none;visibility:visible;transition:transform .2
 .ct-card.right{box-shadow:0 0 16px rgba(255,201,74,.8)}
 .ct-card.wrong{box-shadow:0 0 16px rgba(255,46,80,.8)}
 
-/* con shuffle: dealer-style arc — card lifts, tilts, scales, settles (compositor keyframes) */
-.ct-card.mv{z-index:3;filter:drop-shadow(0 18px 16px rgba(0,0,0,.6));
-  animation:ctArc .4s cubic-bezier(.35,.15,.25,1) both}
-@keyframes ctArc{
-  0%{transform:translateX(0) translateY(0) rotate(0) scale(1)}
-  45%{transform:translateX(calc(var(--d,0px)*.5)) translateY(var(--lift,-30px)) rotate(var(--tilt,5deg)) scale(1.07)}
-  100%{transform:translateX(var(--d,0px)) translateY(0) rotate(0) scale(1)}
+/* con shuffle — reference style (obajuluwa3/3-Card-Monte): one pair at a time;
+   the right-mover RIDES over the felt (small hop, shadow), the left-mover slides flat */
+.ct-card.mv{z-index:2;filter:drop-shadow(0 6px 8px rgba(0,0,0,.55));
+  animation:ctRide .24s ease-in-out both}
+.ct-card.mv.under{z-index:1;filter:none;animation:ctFlat .26s ease-in-out both}
+@keyframes ctRide{
+  0%{transform:translateX(0) translateY(0)}
+  45%{transform:translateX(calc(var(--d,0px)*.5)) translateY(-14px)}
+  100%{transform:translateX(var(--d,0px)) translateY(0)}
 }
-@media (prefers-reduced-motion:reduce){.ct-card.mv{animation:none}}
+@keyframes ctFlat{
+  0%{transform:translateX(0)}
+  100%{transform:translateX(var(--d,0px))}
+}
+@media (prefers-reduced-motion:reduce){.ct-card.mv,.ct-card.mv.under{animation:none}}
 
 /* ---------- CASINO · BLACKJACK ---------- */
 #bj-table{padding:2px 0}
