@@ -122,20 +122,21 @@ const NIGHT_LINES=[
 
 /* ---------------- GARAGE · car collection ---------------- */
 const CARS=[
+  // the wall reads as a ladder: starter → racing climb → activity rewards → crew cars → era trophies
   {id:'stock',  name:'The Stock Coupé',  art:'art/cars/player.jpg',   own:true, hint:'the car you started with'},
   {id:'runner', name:'Neon Runner',      art:'art/cars/g-runner.jpg', how:'win 3 street races',      test:s=>s.acts.swins>=3, who:'roxy'},
+  {id:'rocket', name:'Roxy\'s Red Rocket',art:'art/cars/g-rocket.jpg',how:'win 3 street races in a row', who:'roxy'},
   {id:'muscle', name:'Boardwalk Blown',  art:'art/cars/g-muscle.jpg', how:'win 10 street races',     test:s=>s.acts.swins>=10, who:'ray'},
   {id:'chrome', name:'Chrome Royale',    art:'art/cars/g-chrome.jpg', how:'win 25 street races',     test:s=>s.acts.swins>=25, who:'vivienne'},
   {id:'ghostgt',name:'Midnight GT',      art:'art/cars/g-ghost.jpg',  how:'win a race with every shift PERFECT', who:'ghost'},
-  {id:'rocket', name:'Roxy\'s Red Rocket',art:'art/cars/g-rocket.jpg',how:'win 3 street races in a row', who:'roxy'},
   {id:'buggy',  name:'Swamp Buggy',      art:'art/cars/g-buggy.jpg',  how:'win 5 gator races',       test:s=>s.acts.gwins>=5, who:'yara'},
-  {id:'gt2k',   name:'Millennium GT',    art:'art/cars/g-gt2k.jpg',   how:'enter Era II — Present Day', test:s=>s.era>=2, who:'kmr'},
-  {id:'vector', name:'2049 Vector',      art:'art/cars/g-vector.jpg', how:'enter Era III — 2049',    test:s=>s.era>=3, who:'kmr'},
   {id:'roller', name:'The High Roller',  art:'art/cars/g-roller.jpg', how:'win 15 blackjack hands',  test:s=>s.acts.bjwins>=15, who:'camille'},
-  {id:'impound',name:'Impound Escapee',  art:'art/cars/g-impound.jpg',how:'survive 10 raids',        test:s=>s.stats.raids>=10, who:'ghost'},
   {id:'scorevan',name:'The Scoremachine',art:'art/cars/g-scorevan.jpg',how:'first-clear 6 different heists', test:s=>Object.keys(s.vault).length>=6, who:'ray'},
+  {id:'impound',name:'Impound Escapee',  art:'art/cars/g-impound.jpg',how:'survive 10 raids',        test:s=>s.stats.raids>=10, who:'ghost'},
   {id:'surfer', name:'Solana\'s Sunset Jeep',art:'art/cars/g-surfer.jpg',how:'win Solana to your crew', test:s=>!!s.queens.solana, who:'solana'},
   {id:'limo',   name:'Camille\'s Champagne Limo',art:'art/cars/g-limo.jpg',how:'win Camille to your crew', test:s=>!!s.queens.camille, who:'camille'},
+  {id:'gt2k',   name:'Millennium GT',    art:'art/cars/g-gt2k.jpg',   how:'enter Era II — Present Day', test:s=>s.era>=2, who:'kmr'},
+  {id:'vector', name:'2049 Vector',      art:'art/cars/g-vector.jpg', how:'enter Era III — 2049',    test:s=>s.era>=3, who:'kmr'},
 ];
 function carArt(id){ const c=CARS.find(x=>x.id===id); return c?c.art:'art/cars/player.jpg'; }
 function garageUnlock(id){
