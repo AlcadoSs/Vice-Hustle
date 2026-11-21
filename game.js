@@ -1619,12 +1619,12 @@ const MSG_CHAR={
   system:  {name:'PALMETROCOM',pic:'',                      em:'📡'},
 };
 const MSG_PHOTOS={
-  solana:['art/photos/solana-beach.jpg','art/photos/solana-pool.jpg'],
-  camille:['art/photos/camille-casino.jpg','art/photos/camille-mirror.jpg'],
-  roxy:['art/photos/roxy-car.jpg','art/photos/roxy-garage.jpg'],
-  yara:['art/photos/yara-gator.jpg','art/photos/yara-airboat.jpg'],
-  destiny:['art/photos/destiny-stage.jpg','art/photos/destiny-studio.jpg'],
-  vivienne:['art/photos/vivienne-yacht.jpg','art/photos/vivienne-desk.jpg'],
+  solana:['art/photos/solana-beach.jpg','art/photos/solana-pool.jpg','art/photos/solana-boardwalk.jpg','art/photos/solana-bonfire.jpg'],
+  camille:['art/photos/camille-casino.jpg','art/photos/camille-mirror.jpg','art/photos/camille-penthouse.jpg','art/photos/camille-couture.jpg'],
+  roxy:['art/photos/roxy-car.jpg','art/photos/roxy-garage.jpg','art/photos/roxy-hood.jpg','art/photos/roxy-helmet.jpg'],
+  yara:['art/photos/yara-gator.jpg','art/photos/yara-airboat.jpg','art/photos/yara-campfire.jpg','art/photos/yara-market.jpg'],
+  destiny:['art/photos/destiny-stage.jpg','art/photos/destiny-studio.jpg','art/photos/destiny-limo.jpg','art/photos/destiny-crowd.jpg'],
+  vivienne:['art/photos/vivienne-yacht.jpg','art/photos/vivienne-desk.jpg','art/photos/vivienne-gallery.jpg','art/photos/vivienne-estate.jpg'],
   ray:['art/photos/ray-bar.jpg'],
   sal:['art/photos/sal-desk.jpg'],
   kmr:['art/photos/kmr-studio.jpg'],
