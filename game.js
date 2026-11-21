@@ -204,12 +204,12 @@ function checkChapters(){ // idempotent — covers saves that unlocked mid-load
   }
 }
 /* generic beat-by-beat story card (KRM tapes + queen arcs) */
-function playStoryCard({title, art, beats, kicker='ON AIR…', finalLabel='CONTINUE', finalLine='', onFinal}){
+function playStoryCard({title, art, beats, kicker='ON AIR…', finalLabel='CONTINUE', finalLine='', onFinal, face=false}){
   let i=0;
   const show=()=>{
     const last=i>=beats.length;
     modal(title,
-      `<div class="story-art"><img src="${art}" alt=""></div>
+      `<div class="story-art${face?' face':''}"><img src="${art}" alt=""></div>
        <p class="led-line onair">${kicker}</p>
        <p class="story-beat">${last?'♪ '+beats[beats.length-1]:beats[i]}</p>
        ${last&&finalLine?`<p class="led-line" style="color:var(--gold)">${finalLine}</p>`:''}`,
@@ -353,7 +353,7 @@ function playQueenArc(q,prog){
   const last=prog===2;
   playStoryCard({
     title:`${q.name.toUpperCase()} · ${arc.name.toUpperCase()}`,
-    art:qarcArt(q.id,prog), beats:arc.beats,
+    art:qarcArt(q.id,prog), beats:arc.beats, face:true,
     finalLabel:last?'CLAIM HER TRUST':'ANOTHER NIGHT',
     onFinal:()=>{
       S.qarc[q.id]=prog+1;
@@ -2592,7 +2592,7 @@ function renderQueensApp(){
       window.Radio&&Radio.sfx.tick();
       if(!S.queens[q.id]){
         modal(q.name.toUpperCase()+' — ???',
-          `<div class="story-art"><img src="${q.pic}" alt="" style="filter:grayscale(1) brightness(.4)"></div>
+          `<div class="story-art face"><img src="${q.pic}" alt="" style="filter:grayscale(1) brightness(.4)"></div>
            <p class="led-line onair">NOT IN YOUR LIFE YET</p>
            <p class="story-beat">Win her over first: <b>${q.hint}</b>.</p>`,
           [{label:'SOMEDAY',cls:'btn-primary',fn:closeModal}]);
@@ -2610,7 +2610,7 @@ function renderQueensApp(){
         </div>`;
       }).join('');
       modal(q.name.toUpperCase(),
-        `<div class="story-art"><img src="${q.pic}" alt=""></div>
+        `<div class="story-art face"><img src="${q.pic}" alt=""></div>
          <p class="led-line onair">${q.title.toUpperCase()}</p>
          <div class="qd-stats">
            <span>NIGHTS OUT <b>${nights}</b></span>
@@ -2623,7 +2623,7 @@ function renderQueensApp(){
           closeModal();
           if(arc>0&&arc<3){ // replay the last completed chapter, no reward
             playStoryCard({title:q.name.toUpperCase()+' · '+QUEEN_ARCS[q.id][arc-1].name.toUpperCase(),
-              art:qarcArt(q.id,arc-1),beats:QUEEN_ARCS[q.id][arc-1].beats,
+              art:qarcArt(q.id,arc-1),beats:QUEEN_ARCS[q.id][arc-1].beats,face:true,
               finalLabel:'BACK TO HER',onFinal:()=>renderQueensApp()});
           }
         }}]);

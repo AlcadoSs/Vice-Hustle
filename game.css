@@ -881,6 +881,8 @@ body.phone-open #phone{transform:none;visibility:visible;transition:transform .2
 /* ---------- KRM TAPES · chapter cards ---------- */
 .story-art{margin:-6px -6px 10px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,46,136,.5)}
 .story-art img{display:block;width:100%;aspect-ratio:21/9;object-fit:cover}
+/* face-forward variant for queen dossiers/arcs — taller crop biased to the head */
+.story-art.face img{aspect-ratio:16/10;object-position:center 10%}
 .onair{color:var(--gold) !important;letter-spacing:.35em;font-size:15px !important;margin-bottom:6px}
 .story-beat{font-size:15.5px;line-height:1.6;color:#e2d7ff;font-style:italic}
 
